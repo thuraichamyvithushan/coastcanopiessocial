@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  background-color: transparent;
+}
+
+body {
+  @apply text-gray-900;
+  background-image: url('/background.png');
+  background-size: cover;
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.btn-primary {
+  @apply bg-dark text-white px-6 py-2.5 rounded-none hover:bg-primary-600 transition-all duration-300 font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+  @apply bg-white text-black border-2 border-black px-6 py-2.5 rounded-none hover:bg-black hover:text-white transition-all duration-300 font-bold uppercase tracking-wider;
+}
+
+.input-field {
+  @apply w-full px-4 py-3 rounded-none border-2 border-gray-100 focus:border-black outline-none transition-all duration-200 bg-gray-50/50;
+}
+
+.sidebar-link {
+  @apply flex items-center gap-4 px-6 py-4 transition-all duration-200 text-gray-400 hover:text-white hover:bg-white/5 border-l-4 border-transparent;
+}
+
+.sidebar-link-active {
+  @apply flex items-center gap-4 px-6 py-4 bg-white/10 text-white border-l-4 border-primary-600;
+}
