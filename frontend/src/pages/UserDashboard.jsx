@@ -218,6 +218,7 @@ import { useNavigate } from 'react-router-dom';
 const PostItem = ({ post, index, currentUser, onLike }) => {
     const navigate = useNavigate();
     const [isLocalNew, setIsLocalNew] = useState(post.isNew);
+    const [isExpanded, setIsExpanded] = useState(false);
 
     const markAsRead = async () => {
         if (!isLocalNew) return;
@@ -296,8 +297,19 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                     <h3 className="text-xl md:text-2xl font-black uppercase tracking-tighter leading-none italic hover:text-primary-600 transition-colors">
                         {post.title}
                     </h3>
-                    <p className="text-xs text-gray-600 leading-relaxed font-medium line-clamp-2 whitespace-pre-wrap">
-                        {post.description}
+                    <p className="text-xs text-gray-600 leading-relaxed font-medium whitespace-pre-wrap">
+                        {isExpanded ? post.description : (post.description.length > 150 ? post.description.substring(0, 150) + '...' : post.description)}
+                        {post.description.length > 150 && !isExpanded && (
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsExpanded(true);
+                                }}
+                                className="text-primary-600 font-black ml-1 hover:underline uppercase text-[10px]"
+                            >
+                                Read More
+                            </button>
+                        )}
                     </p>
 
                     {post.eventDate && (
@@ -311,14 +323,14 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                 {/* Media Container */}
                 {firstMedia.url && (
                     <div 
-                        className="relative aspect-video bg-black border-2 border-black group cursor-pointer overflow-hidden"
+                        className="relative bg-black border-2 border-black group cursor-pointer overflow-hidden"
                         onClick={handleNavigate}
                     >
                         {firstMedia.type === 'video' ? (
-                            <div className="w-full h-full flex items-center justify-center">
+                            <div className="w-full flex items-center justify-center">
                                 <video 
                                     src={firstMedia.url?.startsWith('http') ? firstMedia.url : `http://localhost:5000${firstMedia.url}`}
-                                    className="w-full h-full object-contain"
+                                    className="w-full h-auto"
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
                                     <PlayCircle size={48} className="text-white opacity-80 group-hover:scale-110 transition-transform" />
@@ -328,7 +340,7 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                             <img
                                 src={firstMedia.url?.startsWith('http') ? firstMedia.url : `http://localhost:5000${firstMedia.url}`}
                                 alt={post.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                className="w-full h-auto group-hover:scale-105 transition-transform duration-700 block"
                             />
                         )}
                         
