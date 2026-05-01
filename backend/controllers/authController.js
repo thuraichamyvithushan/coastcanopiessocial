@@ -245,30 +245,40 @@ exports.firebaseAuth = async (req, res) => {
 
         // 2. Find user in MongoDB
         let user = await User.findOne({ email });
+        
+        // Identify if this is an internal user (e.g., from huntsmanoptics.com)
+        const isInternalDomain = email.endsWith('@huntsmanoptics.com');
 
         if (user) {
             // Update firebaseUid if not set
             if (!user.firebaseUid) {
                 user.firebaseUid = uid;
-                await user.save();
             }
+            
+            // Auto-approve internal domain users even if they existed as pending
+            if (isInternalDomain && user.status === 'pending') {
+                user.status = 'approved';
+            }
+            
+            await user.save();
         } else {
             // 3. Create new user if doesn't exist
             user = await User.create({
                 name: name || email.split('@')[0],
                 email: email,
                 firebaseUid: uid,
-                status: 'approved' // Automatically approve Firebase users
+                status: isInternalDomain ? 'approved' : 'pending' // Only auto-approve internal domain users or as per previous logic
             });
 
-            // Log the new registration (optional)
+            // Log the new registration
             const Notification = mongoose.model('Notification');
             await Notification.create({
                 type: 'registration',
-                message: `New automatic approval for ${user.name} (${email}).`,
+                message: `New ${isInternalDomain ? 'Internal' : 'External'} member ${user.name} (${email}) joined via Firebase.`,
                 userId: user._id
             });
         }
+
 
         // 4. Ensure existing user is also approved if they are logging in via Firebase
         if (user.status === 'pending') {

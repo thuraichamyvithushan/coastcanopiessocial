@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import { auth } from '../config/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, googleProvider } from '../config/firebase';
+import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import logo from '../assets/logo.png';
 import authBg from '../assets/auth2.webp';
 
@@ -54,6 +54,30 @@ const Login = () => {
         } catch (error) {
             console.error('Login error:', error);
             const message = error.response?.data?.message || error.message || 'Login failed';
+            toast.error(message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleInternalLogin = async () => {
+        setLoading(true);
+        try {
+            const result = await signInWithPopup(auth, googleProvider);
+            const idToken = await result.user.getIdToken();
+            
+            const { data } = await api.post('/auth/firebase', { idToken });
+            
+            login(data);
+            toast.success('Welcome back, Internal Member!');
+            
+            setTimeout(() => {
+                if (data.role === 'admin') navigate('/admin-dashboard', { replace: true });
+                else navigate('/dashboard', { replace: true });
+            }, 200);
+        } catch (error) {
+            console.error('Internal login error:', error);
+            const message = error.response?.data?.message || error.message || 'Internal login failed';
             toast.error(message);
         } finally {
             setLoading(false);
@@ -146,6 +170,28 @@ const Login = () => {
                             )}
                         </button>
                     </form>
+
+                    <div className="relative my-8">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t border-gray-100"></span>
+                        </div>
+                        <div className="relative flex justify-center text-[10px] uppercase font-black tracking-widest text-gray-400 bg-white px-4">
+                            Or Access Via
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleInternalLogin}
+                        disabled={loading}
+                        className="btn-secondary w-full flex items-center justify-center gap-3 py-5 group"
+                    >
+                        <div className="w-5 h-5 flex items-center justify-center bg-white rounded-full border border-gray-200 overflow-hidden group-hover:border-transparent transition-colors">
+                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/smartlock/google.svg" alt="G" className="w-3 h-3" />
+                        </div>
+                        <span className="text-sm font-black uppercase tracking-widest">HO Internal Account</span>
+                    </button>
+
 
                     <p className="mt-12 text-sm font-medium text-gray-400">
                         New to the platform?{' '}
