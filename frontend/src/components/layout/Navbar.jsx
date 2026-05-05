@@ -201,6 +201,16 @@ const Navbar = ({ toggleSidebar }) => {
         }
     };
 
+    const handleMarkAllAsRead = async () => {
+        try {
+            await api.put('/notifications/read-all');
+            setNotifications({ unreadCount: 0, latestComments: [] });
+            setShowDropdown(false);
+        } catch (err) {
+            console.warn('Failed to mark all as read');
+        }
+    };
+
     return (
         <header className="fixed top-0 right-0 left-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-40 px-4 md:px-10 flex items-center justify-between transition-all duration-300">
             <div className="flex items-center gap-4">
@@ -240,7 +250,17 @@ const Navbar = ({ toggleSidebar }) => {
                                     className="absolute -right-12 md:right-0 mt-4 w-[85vw] md:w-80 bg-white border border-gray-100 shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     <div className="px-5 py-4 border-b border-gray-100 bg-white flex items-center justify-between">
-                                        <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Notifications</p>
+                                        <div className="flex flex-col">
+                                            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Notifications</p>
+                                            {notifications.unreadCount > 0 && (
+                                                <button 
+                                                    onClick={handleMarkAllAsRead}
+                                                    className="text-[9px] font-black text-primary-600 uppercase tracking-widest hover:text-black transition-colors text-left mt-1"
+                                                >
+                                                    Mark all as read
+                                                </button>
+                                            )}
+                                        </div>
                                         {notifications.unreadCount > 0 && (
                                             <span className="bg-primary-50 text-primary-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
                                                 {notifications.unreadCount} New
@@ -262,7 +282,7 @@ const Navbar = ({ toggleSidebar }) => {
                                             notifications.latestComments.map((note) => (
                                                 <Link
                                                     key={note._id}
-                                                    to={note.type === 'reply' ? `/post/${note.postId}` : "/admin-dashboard"}
+                                                    to={note.postId ? `/post/${note.postId}` : (user.role === 'admin' ? "/admin-dashboard" : "/dashboard")}
                                                     onClick={() => {
                                                         setShowDropdown(false);
                                                         handleMarkAsRead(note._id, note.type);
@@ -271,7 +291,10 @@ const Navbar = ({ toggleSidebar }) => {
                                                 >
                                                     <div className="flex items-center justify-between mb-2">
                                                         <span className="text-[10px] font-bold text-primary-600 tracking-tight uppercase">
-                                                            {note.type === 'new_assignment' ? 'New Post' : 'New Comment'}
+                                                            {note.type === 'new_assignment' ? 'New Post' : 
+                                                             note.type === 'like' ? 'New Like' : 
+                                                             note.type === 'comment' ? 'New Comment' : 
+                                                             note.type === 'reply' ? 'Reply' : 'Activity'}
                                                         </span>
                                                         <span className="text-[9px] font-medium text-gray-400">
                                                             {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -280,7 +303,8 @@ const Navbar = ({ toggleSidebar }) => {
                                                     <h4 className="text-xs font-bold text-gray-900 mb-1 group-hover:text-primary-600 transition-colors uppercase tracking-tighter">
                                                         {note.postTitle || 'Post'}
                                                     </h4>
-                                                    <p className="text-[11px] text-gray-500 line-clamp-1 mb-2">
+                                                    <p className="text-[11px] text-gray-500 line-clamp-1 mb-2 italic">
+                                                        <span className="font-bold text-gray-700 not-italic mr-1">{note.userName}:</span>
                                                         {note.comment || 'New activity'}
                                                     </p>
                                                 </Link>

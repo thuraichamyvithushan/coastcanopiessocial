@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Heart, ArrowLeft, ChevronLeft, ChevronRight, PlayCircle, Download, Maximize2, X } from 'lucide-react';
+import { Heart, ArrowLeft, ChevronLeft, ChevronRight, PlayCircle, Download, Maximize2, X, Calendar, Loader2 } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,11 +22,24 @@ const PostDetails = () => {
     const [loading, setLoading] = useState(true);
     const [activeMedia, setActiveMedia] = useState(0);
     const [isMaximized, setIsMaximized] = useState(false);
+    
+    // Calendar Invite State
+    const [showInviteModal, setShowInviteModal] = useState(false);
+    const [usersList, setUsersList] = useState([]);
+    const [selectedUsers, setSelectedUsers] = useState([]);
+    const [sendingInvite, setSendingInvite] = useState(false);
 
     const fetchData = async () => {
         try {
             const postRes = await api.get(`/posts/${id}`);
             setPost(postRes.data);
+            
+            // If admin, fetch users for the invite modal
+            if (user?.role === 'admin') {
+                const usersRes = await api.get('/admin/users');
+                const approvedUsers = usersRes.data.filter(u => u.status === 'approved' && u.role === 'user');
+                setUsersList(approvedUsers);
+            }
         } catch (error) {
             toast.error('Failed to load content');
         } finally {
@@ -36,7 +49,7 @@ const PostDetails = () => {
 
     useEffect(() => {
         fetchData();
-    }, [id]);
+    }, [id, user]);
 
     const handleLike = async () => {
         try {
@@ -66,6 +79,39 @@ const PostDetails = () => {
         }
     };
 
+    const handleSendInvites = async () => {
+        if (selectedUsers.length === 0) {
+            toast.error('Please select at least one user');
+            return;
+        }
+
+        try {
+            setSendingInvite(true);
+            await api.post(`/posts/${id}/invite`, { userIds: selectedUsers });
+            toast.success('Calendar invites sent successfully!');
+            setShowInviteModal(false);
+            setSelectedUsers([]);
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to send calendar invites');
+        } finally {
+            setSendingInvite(false);
+        }
+    };
+
+    const toggleUserSelection = (userId) => {
+        setSelectedUsers(prev => 
+            prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectedUsers.length === usersList.length) {
+            setSelectedUsers([]);
+        } else {
+            setSelectedUsers(usersList.map(u => u._id));
+        }
+    };
+
     if (loading) return <div className="p-20 text-center text-gray-400 animate-pulse font-bold tracking-widest uppercase">Loading...</div>;
     if (!post) return <div className="p-20 text-center text-red-500 font-bold">Content not found.</div>;
 
@@ -88,7 +134,7 @@ const PostDetails = () => {
                     <h1 className="text-2xl md:text-5xl font-black text-black tracking-tighter uppercase italic leading-tight">{post.title}</h1>
                     
                     {/* Badges */}
-                    {(post.platforms?.length > 0 || post.regions?.length > 0) && (
+                    {(post.platforms?.length > 0 || post.regions?.length > 0 || post.eventDate) && (
                         <div className="flex flex-wrap gap-3 mt-6">
                             {post.platforms?.map(p => (
                                 <div key={p} className={`p-2 border-2 border-black shadow-[4px_4px_0px_#000] flex items-center justify-center ${p === 'Facebook' ? 'bg-[#1877F2] text-white' : 'bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white'}`} title={p}>
@@ -100,16 +146,40 @@ const PostDetails = () => {
                                     {r}
                                 </span>
                             ))}
+                            {post.eventDate && (
+                                <span className="text-[9px] md:text-[11px] font-black uppercase px-3 py-1.5 bg-primary-600 text-white border-2 border-black shadow-[4px_4px_0px_#000] flex items-center gap-2">
+                                    <Calendar size={12} />
+                                    {new Date(post.eventDate).toLocaleDateString()}
+                                </span>
+                            )}
                         </div>
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-4 md:justify-end">
+                    {user?.role === 'admin' && post.eventDate && (
+                        <button 
+                            onClick={() => setShowInviteModal(true)}
+                            className="flex flex-col items-center justify-center gap-1 px-6 py-2 border-2 border-black font-black uppercase tracking-widest text-[10px] transition-all shadow-[4px_4px_0px_#ff3e3e] active:shadow-none active:translate-x-1 active:translate-y-1 bg-white text-black hover:bg-gray-50"
+                        >
+                            <div className="flex items-center gap-2">
+                                <Calendar size={14} />
+                                <span>Send Calendar Invite</span>
+                            </div>
+                        </button>
+                    )}
                     <button 
                         onClick={handleLike}
-                        className={`flex items-center gap-2 px-4 py-2 border-2 border-black font-black uppercase tracking-widest text-[10px] transition-all shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-1 active:translate-y-1 ${isLiked ? 'bg-primary-600 text-white border-primary-600 shadow-primary-900' : 'bg-white text-black hover:bg-gray-50'}`}
+                        className={`flex flex-col items-center justify-center gap-1 px-6 py-2 border-2 border-black font-black uppercase tracking-widest text-[10px] transition-all shadow-[4px_4px_0px_#000] active:shadow-none active:translate-x-1 active:translate-y-1 ${isLiked ? 'bg-primary-600 text-white border-primary-600 shadow-primary-900' : 'bg-white text-black hover:bg-gray-50'}`}
                     >
-                        <Heart size={14} fill={isLiked ? 'currentColor' : 'none'} />
-                        {post.likes?.length || 0} Likes
+                        <div className="flex items-center gap-2">
+                            <Heart size={14} fill={isLiked ? 'currentColor' : 'none'} />
+                            <span>{post.likes?.length || 0} Likes</span>
+                        </div>
+                        {post.likes?.length > 0 && (
+                            <span className="text-[7px] font-black uppercase tracking-tighter opacity-60 max-w-[150px] truncate">
+                                {post.likes.map(u => u.name).join(', ')}
+                            </span>
+                        )}
                     </button>
                     <div className="text-right">
                         <span className="px-3 py-1.5 bg-black text-white text-[8px] md:text-[10px] font-black uppercase tracking-widest">
@@ -268,6 +338,98 @@ const PostDetails = () => {
                     <CommentSection postId={id} user={user} />
                 </div>
             </div>
+
+            {/* ── Invite Modal ─────────────────────────────────── */}
+            <AnimatePresence>
+                {showInviteModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowInviteModal(false)}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                            className="relative w-full max-w-lg bg-white border-4 border-black shadow-[16px_16px_0px_#ff3e3e] overflow-hidden flex flex-col"
+                        >
+                            <div className="bg-black p-4 flex items-center justify-between">
+                                <h2 className="text-white font-black uppercase tracking-widest text-sm">Send Calendar Invite</h2>
+                                <button onClick={() => setShowInviteModal(false)} className="text-white hover:text-primary-400 transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            
+                            <div className="p-6 flex-1 overflow-y-auto max-h-[60vh]">
+                                <div className="flex items-center justify-between mb-4">
+                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Select Users</p>
+                                    <button 
+                                        onClick={handleSelectAll}
+                                        className="text-[10px] font-black uppercase tracking-widest text-primary-600 hover:text-black transition-colors"
+                                    >
+                                        {selectedUsers.length === usersList.length ? 'Deselect All' : 'Select All'}
+                                    </button>
+                                </div>
+
+                                {usersList.length === 0 ? (
+                                    <p className="text-center text-gray-400 py-8 text-sm italic">No active users found.</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {usersList.map((u) => (
+                                            <div 
+                                                key={u._id} 
+                                                onClick={() => toggleUserSelection(u._id)}
+                                                className={`flex items-center justify-between p-3 border-2 cursor-pointer transition-all ${
+                                                    selectedUsers.includes(u._id) 
+                                                        ? 'border-primary-600 bg-primary-50' 
+                                                        : 'border-gray-200 hover:border-black'
+                                                }`}
+                                            >
+                                                <div>
+                                                    <p className="font-bold text-sm text-black">{u.name}</p>
+                                                    <p className="text-[10px] text-gray-500">{u.email}</p>
+                                                </div>
+                                                <div className={`w-5 h-5 border-2 flex items-center justify-center ${
+                                                    selectedUsers.includes(u._id) ? 'border-primary-600 bg-primary-600' : 'border-gray-300'
+                                                }`}>
+                                                    {selectedUsers.includes(u._id) && <div className="w-2.5 h-2.5 bg-white" />}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-4 border-t-2 border-black bg-gray-50 flex justify-end gap-3">
+                                <button
+                                    onClick={() => setShowInviteModal(false)}
+                                    disabled={sendingInvite}
+                                    className="px-6 py-2 border-2 border-black font-black uppercase tracking-widest text-[10px] hover:bg-black hover:text-white transition-all disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSendInvites}
+                                    disabled={sendingInvite || selectedUsers.length === 0}
+                                    className="flex items-center gap-2 px-6 py-2 border-2 border-black bg-primary-600 text-white font-black uppercase tracking-widest text-[10px] shadow-[4px_4px_0px_#000] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all disabled:opacity-50 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[4px_4px_0px_#000]"
+                                >
+                                    {sendingInvite ? (
+                                        <>
+                                            <Loader2 size={14} className="animate-spin" />
+                                            <span>Sending...</span>
+                                        </>
+                                    ) : (
+                                        <span>Send Invites ({selectedUsers.length})</span>
+                                    )}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

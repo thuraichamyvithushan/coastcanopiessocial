@@ -60,17 +60,6 @@ export const AuthProvider = ({ children }) => {
         if (userInfo) {
             setUser(JSON.parse(userInfo));
         } 
-        else {
-            // 🔥 FORCE A DEFAULT USER SO DASHBOARD LOADS
-            const defaultUser = {
-                _id: "default_user_123",
-                name: "Demo User",
-                email: "demo@example.com",
-                role: "user"        // Change to "admin" if you want to test admin dashboard
-            };
-            setUser(defaultUser);
-            localStorage.setItem('userInfo', JSON.stringify(defaultUser));
-        }
 
         setLoading(false);
     }, []);
@@ -85,11 +74,10 @@ export const AuthProvider = ({ children }) => {
             await signOut(auth);
             localStorage.removeItem('userInfo');
             setUser(null);
-            // Changed from /login to /dashboard
-            window.location.href = '/dashboard';
+            window.location.href = '/login';
         } catch (error) {
             console.error('Logout error:', error);
-            window.location.href = '/dashboard';
+            window.location.href = '/login';
         }
     };
 

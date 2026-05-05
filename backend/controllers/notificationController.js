@@ -58,8 +58,11 @@ exports.getAdminNotifications = async (req, res) => {
 
         const systemResults = systemNotifications.map(n => ({
             _id: n._id,
+            postId: n.postId,
             type: n.type,
-            postTitle: n.type === 'registration' ? 'New Registration' : 'Login Attempt',
+            postTitle: n.type === 'registration' ? 'New Registration' : 
+                       n.type === 'login_attempt' ? 'Login Attempt' : 
+                       n.type === 'like' ? 'New Like' : 'New Activity',
             userName: n.userId?.name || 'Guest User',
             comment: n.message,
             createdAt: n.createdAt,
@@ -111,11 +114,50 @@ exports.markAsRead = async (req, res) => {
             // Mark the post itself as viewed by this user
             await Post.findByIdAndUpdate(id, { $addToSet: { viewedBy: userId } });
         } else {
-            // It's a system notification (registration, etc.)
+            // It's a system notification (registration, like, etc.)
             await Notification.findByIdAndUpdate(id, { read: true });
         }
 
         res.json({ message: 'Marked as read' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Mark ALL notifications as read
+// @route   PUT /api/notifications/read-all
+// @access  Private
+exports.markAllAsRead = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const Comment = mongoose.model('Comment');
+        const Notification = mongoose.model('Notification');
+        const Post = mongoose.model('Post');
+
+        if (req.user.role === 'admin') {
+            // 1. Mark all unread comments as read by admin
+            await Comment.updateMany({ readByAdmin: false }, { readByAdmin: true });
+            
+            // 2. Mark all system notifications as read
+            await Notification.updateMany({ read: false }, { read: true });
+        } else {
+            // 1. Mark all comments as read by this user
+            await Comment.updateMany(
+                { readByUsers: { $ne: userId }, userId: { $ne: userId } },
+                { $addToSet: { readByUsers: userId } }
+            );
+
+            // 2. Mark all user-specific system notifications as read
+            await Notification.updateMany({ userId: userId, read: false }, { read: true });
+            
+            // 3. Mark all unread posts as viewed by this user
+            await Post.updateMany(
+                { viewedBy: { $ne: userId } },
+                { $addToSet: { viewedBy: userId } }
+            );
+        }
+
+        res.json({ message: 'All notifications marked as read' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -145,11 +187,29 @@ exports.getUserNotifications = async (req, res) => {
         }
 
         // Original logic for logged-in users
-        const notifications = await Notification.find({ 
-            user: req.user._id 
-        }).sort('-createdAt');
+        // Get unread notifications for this user
+        const notes = await Notification.find({ 
+            userId: req.user._id,
+            read: false
+        })
+        .populate('postId', 'title')
+        .sort('-createdAt');
 
-        res.json(notifications);
+        const formatted = notes.map(n => ({
+            _id: n._id,
+            postId: n.postId?._id,
+            type: n.type,
+            postTitle: n.postId?.title || 'System',
+            userName: 'HO SOCIAL',
+            comment: n.message,
+            createdAt: n.createdAt,
+            count: 1
+        }));
+
+        res.json({
+            unreadCount: formatted.length,
+            latestComments: formatted
+        });
     } catch (error) {
         console.error('Error fetching user notifications:', error);
         res.status(500).json({ message: 'Failed to fetch notifications' });

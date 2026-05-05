@@ -1,4 +1,7 @@
 const Comment = require('../models/Comment');
+const Notification = require('../models/Notification');
+const Post = require('../models/Post');
+const User = require('../models/User');
 
 // @desc    Add comment to post
 // @route   POST /api/comments
@@ -30,14 +33,8 @@ exports.addComment = async (req, res) => {
     const { postId, comment, parentId } = req.body;
 
     try {
-        // If no authenticated user (demo mode), use a default demo user
-        let userId = req.user ? req.user._id : null;
-        let userRole = req.user ? req.user.role : 'user';
-
-        if (!userId) {
-            // Create a fake user ID for demo comments
-            userId = new mongoose.Types.ObjectId("000000000000000000000001");
-        }
+        const userId = req.user._id;
+        const userRole = req.user.role;
 
         const newComment = await Comment.create({
             postId,
@@ -46,6 +43,34 @@ exports.addComment = async (req, res) => {
             parentId: parentId || null,
             readByAdmin: userRole === 'admin'
         });
+
+        // --- NOTIFICATIONS ---
+        const post = await Post.findById(postId);
+        if (post) {
+            // 1. Notify the creator of the post
+            if (post.createdBy.toString() !== userId.toString()) {
+                await Notification.create({
+                    type: 'comment',
+                    message: `${req.user ? req.user.name : 'A member'} commented on ${post.title}`,
+                    userId: post.createdBy,
+                    postId: post._id
+                });
+            }
+
+            // 2. Notify all admins (if commenter is a user)
+            if (userRole === 'user') {
+                const admins = await User.find({ role: 'admin', _id: { $ne: post.createdBy } });
+                for (const admin of admins) {
+                    await Notification.create({
+                        type: 'comment',
+                        message: `${req.user ? req.user.name : 'A member'} commented on ${post.title}`,
+                        userId: admin._id,
+                        postId: post._id
+                    });
+                }
+            }
+        }
+        // ---------------------
 
         const populatedComment = await Comment.findById(newComment._id)
             .populate('userId', 'name');
@@ -259,10 +284,11 @@ exports.getUserNotifications = async (req, res) => {
         const userId = new mongoose.Types.ObjectId(req.user._id);
         const Post = mongoose.model('Post');
 
-        // 1. Find new posts (not viewed by user yet)
+        // 1. Find new posts (not viewed by user yet AND created after user registration)
         const newPosts = await Post.find({
             viewedBy: { $nin: [userId] },
-            isDeleted: { $ne: true }
+            isDeleted: { $ne: true },
+            createdAt: { $gte: req.user.createdAt }
         }).select('title createdBy createdAt').populate('createdBy', 'name');
 
         // 2. Find unread admin replies
@@ -326,5 +352,73 @@ exports.getUserNotifications = async (req, res) => {
     } catch (error) {
         console.error('Error in getUserNotifications:', error);
         res.status(500).json({ message: 'Failed to fetch notifications' });
+    }
+};
+
+// @desc    Update a comment
+// @route   PUT /api/comments/:id
+// @access  Private
+exports.updateComment = async (req, res) => {
+    try {
+        const comment = await Comment.findById(req.params.id);
+
+        if (!comment) {
+            return res.status(404).json({ message: 'Comment not found' });
+        }
+
+        // Check ownership
+        if (comment.userId.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ message: 'Not authorized' });
+        }
+
+        comment.comment = req.body.comment || comment.comment;
+        await comment.save();
+
+        const populatedComment = await Comment.findById(comment._id).populate('userId', 'name');
+        res.json(populatedComment);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Delete a comment
+// @route   DELETE /api/comments/:id
+// @access  Private
+exports.deleteComment = async (req, res) => {
+    try {
+        const comment = await Comment.findById(req.params.id);
+
+        if (!comment) {
+            return res.status(404).json({ message: 'Comment not found' });
+        }
+
+        // Check ownership (admins can delete any comment)
+        if (comment.userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+            return res.status(401).json({ message: 'Not authorized' });
+        }
+
+        // If it's a root comment, should we delete replies? 
+        // For simplicity, we'll just delete this one.
+        await Comment.deleteOne({ _id: req.params.id });
+
+        res.json({ message: 'Comment removed' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Delete all comments for a post
+// @route   DELETE /api/comments/post/:postId
+// @access  Private/Admin
+exports.deleteAllComments = async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(401).json({ message: 'Not authorized' });
+        }
+
+        await Comment.deleteMany({ postId: req.params.postId });
+        res.json({ message: 'All comments removed for this post' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 };

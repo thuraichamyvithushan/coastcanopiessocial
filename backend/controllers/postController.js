@@ -1,8 +1,10 @@
 const Post = require('../models/Post');
 const User = require('../models/User');
 const Comment = require('../models/Comment');
+const Notification = require('../models/Notification');
 const sendEmail = require('../utils/sendEmail');
 const { uploadToFirebase } = require('../utils/firebaseStorage');
+const ics = require('ics');
 
 // @desc    Create new post (supports multiple media files)
 // @route   POST /api/posts
@@ -114,6 +116,7 @@ exports.getUserPosts = async (req, res) => {
             isDeleted: { $ne: true }
         })
             .populate('createdBy', 'name')
+            .populate('likes', 'name')
             .sort('-createdAt');
 
         // Attach comment count and unread status safely
@@ -208,6 +211,7 @@ exports.getAdminPosts = async (req, res) => {
         })
             .populate('assignedUsers', 'name email')
             .populate('createdBy', 'name')
+            .populate('likes', 'name')
             .sort('-createdAt');
 
         // Attach comment counts safely
@@ -248,6 +252,7 @@ exports.getAdminArchivedPosts = async (req, res) => {
         })
             .populate('assignedUsers', 'name email')
             .populate('createdBy', 'name')
+            .populate('likes', 'name')
             .sort('-createdAt');
 
         const postsWithCount = await Promise.all(posts.map(async (post) => {
@@ -311,7 +316,8 @@ exports.getPostById = async (req, res) => {
     try {
         const post = await Post.findById(req.params.id)
             .populate('createdBy', 'name email')
-            .populate('assignedUsers', 'name email');
+            .populate('assignedUsers', 'name email')
+            .populate('likes', 'name');
 
         if (!post) {
             return res.status(404).json({ message: 'Post not found' });
@@ -524,14 +530,23 @@ exports.getRecentActivity = async (req, res) => {
             // Get the last comment to show its date and user
             const lastComment = await Comment.findOne({ postId: post._id })
                 .sort('-createdAt')
-                .populate('userId', 'name');
+                .populate('userId', 'name role');
+
+            let lastRepliedBy = 'System';
+            if (lastComment) {
+                if (lastComment.userId && lastComment.userId.name) {
+                    lastRepliedBy = lastComment.userId.name;
+                } else {
+                    lastRepliedBy = 'A Member'; // Fallback for deleted or demo users
+                }
+            }
 
             return {
                 ...post.toObject(),
                 unreadReplies: unreadCount,
                 totalReplies: totalCount,
                 lastActivity: lastComment ? lastComment.createdAt : post.updatedAt,
-                lastRepliedBy: lastComment && lastComment.userId ? lastComment.userId.name : 'Admin'
+                lastRepliedBy: lastRepliedBy
             };
         }));
 
@@ -596,9 +611,127 @@ exports.toggleLike = async (req, res) => {
         }
 
         await post.save();
-        res.json({ likes: post.likes });
+
+        // --- NOTIFICATIONS ---
+        if (!isLiked) {
+            // 1. Notify the creator of the post
+            if (post.createdBy.toString() !== userId) {
+                await Notification.create({
+                    type: 'like',
+                    message: `${req.user.name} liked your design: ${post.title}`,
+                    userId: post.createdBy,
+                    postId: post._id
+                });
+            }
+
+            // 2. Notify other admins (if the liker is a user)
+            if (req.user.role === 'user') {
+                const admins = await User.find({ role: 'admin', _id: { $ne: post.createdBy } });
+                for (const admin of admins) {
+                    await Notification.create({
+                        type: 'like',
+                        message: `${req.user.name} liked ${post.title}`,
+                        userId: admin._id,
+                        postId: post._id
+                    });
+                }
+            }
+        }
+        // ---------------------
+        const updatedPost = await Post.findById(post._id).populate('likes', 'name');
+        res.json({ likes: updatedPost.likes });
     } catch (error) {
         console.error('Error in toggleLike:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Send calendar invites to specific users
+// @route   POST /api/posts/:id/invite
+// @access  Private/Admin
+exports.sendCalendarInvites = async (req, res) => {
+    try {
+        const { userIds } = req.body;
+        const post = await Post.findById(req.params.id);
+
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+
+        if (!post.eventDate) {
+            return res.status(400).json({ message: 'This post does not have an event date.' });
+        }
+
+        if (!userIds || userIds.length === 0) {
+            return res.status(400).json({ message: 'No users selected for the invite.' });
+        }
+
+        const users = await User.find({ _id: { $in: userIds } });
+
+        if (users.length === 0) {
+            return res.status(404).json({ message: 'Selected users not found' });
+        }
+
+        // Parse the event date. Assuming post.eventDate is a string (e.g., 'YYYY-MM-DD' or ISO string)
+        const dateObj = new Date(post.eventDate);
+        
+        // ics expects [year, month, date, hours, minutes] for a specific time, 
+        // or [year, month, date] for an all-day event.
+        // We will make it an all-day event based on the dateObj.
+        const event = {
+            start: [dateObj.getFullYear(), dateObj.getMonth() + 1, dateObj.getDate()],
+            title: post.title,
+            description: post.description,
+            status: 'CONFIRMED',
+            busyStatus: 'BUSY',
+            organizer: { name: req.user.name, email: req.user.email }
+        };
+
+        ics.createEvent(event, async (error, value) => {
+            if (error) {
+                console.error('ICS Generation Error:', error);
+                return res.status(500).json({ message: 'Failed to generate calendar invite.' });
+            }
+
+            // Create a buffer from the ics string
+            const icsBuffer = Buffer.from(value, 'utf-8');
+
+            const emailPromises = users.map(async (user) => {
+                const message = `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2>Calendar Invite: ${post.title}</h2>
+                        <p>Hello ${user.name},</p>
+                        <p>You have been invited to an event related to the following post:</p>
+                        <div style="background: #f4f4f4; padding: 15px; margin: 15px 0;">
+                            <strong>${post.title}</strong><br/>
+                            <p>${post.description}</p>
+                            <p><strong>Date:</strong> ${dateObj.toLocaleDateString()}</p>
+                        </div>
+                        <p>Please find the attached calendar invite (.ics file) to add this event to your personal calendar.</p>
+                        <p>Best regards,<br/>HO SOCIAL Team</p>
+                    </div>
+                `;
+
+                return sendEmail({
+                    email: user.email,
+                    subject: `Calendar Invite: ${post.title}`,
+                    html: message,
+                    attachments: [
+                        {
+                            filename: 'invite.ics',
+                            content: icsBuffer,
+                            contentType: 'text/calendar'
+                        }
+                    ]
+                });
+            });
+
+            await Promise.all(emailPromises);
+
+            res.status(200).json({ message: 'Calendar invites sent successfully.' });
+        });
+    } catch (error) {
+        console.error('Error in sendCalendarInvites:', error);
         res.status(500).json({ message: error.message });
     }
 };

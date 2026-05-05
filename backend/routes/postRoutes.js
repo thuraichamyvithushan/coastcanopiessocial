@@ -57,7 +57,8 @@ const {
     unarchivePost,
     deletePost,
     getRecentActivity,
-    toggleLike
+    toggleLike,
+    sendCalendarInvites
 } = require('../controllers/postController');
 
 const { protect, admin } = require('../middleware/authMiddleware');
@@ -70,28 +71,26 @@ const upload = multer({
 });
 
 
-// ====================== PUBLIC ROUTES ======================
+// Protect all routes
+router.use(protect);
+
+// ====================== PUBLIC-FACING (FOR LOGGED IN USERS) ======================
 router.get('/user', getUserPosts);
+router.get('/user/archived', getUserArchivedPosts);
+router.patch('/:id/like', toggleLike);
 
-
-// ====================== ADMIN ROUTES (PROTECTED) ======================
-router.get('/admin', protect, admin, getAdminPosts);
-router.get('/admin/archived', protect, admin, getAdminArchivedPosts);
-router.get('/admin/recent-activity', protect, admin, getRecentActivity);
-
-
-// ====================== OTHER PROTECTED ROUTES ======================
-router.post('/', protect, admin, upload.array('media', 10), createPost);
-router.get('/user/archived', protect, getUserArchivedPosts);
-router.put('/:id', protect, admin, updatePost);
-router.patch('/:id/archive', protect, archivePost);
-router.patch('/:id/unarchive', protect, unarchivePost);
-router.patch('/:id/like', protect, toggleLike);
-router.delete('/:id', protect, admin, deletePost);
-
+// ====================== ADMIN ROUTES ======================
+router.get('/admin', admin, getAdminPosts);
+router.get('/admin/archived', admin, getAdminArchivedPosts);
+router.get('/admin/recent-activity', admin, getRecentActivity);
+router.post('/', admin, upload.array('media', 10), createPost);
+router.post('/:id/invite', admin, sendCalendarInvites);
+router.put('/:id', admin, updatePost);
+router.patch('/:id/archive', archivePost);
+router.patch('/:id/unarchive', unarchivePost);
+router.delete('/:id', admin, deletePost);
 
 // ====================== DYNAMIC ROUTE (KEEP LAST) ======================
 router.get('/:id', getPostById);
-
 
 module.exports = router;

@@ -177,7 +177,7 @@ const filteredPosts = posts.filter(post => {
                         ))}
                     </div>
                 ) : (
-                    <div className="space-y-8">
+                    <div className="space-y-12">
                         {filteredPosts.length === 0 ? (
                             <div className="p-16 text-center border-2 border-black border-dashed backdrop-blur-sm bg-white/20">
                                 <Clock size={40} className="mx-auto mb-4 text-black" />
@@ -185,22 +185,69 @@ const filteredPosts = posts.filter(post => {
                             </div>
                         ) : (
                             <>
-                                {filteredPosts.slice(0, currentPage * ITEMS_PER_PAGE).map((post, index) => (
-                                    <PostItem
-                                        key={post._id}
-                                        post={post}
-                                        index={index}
-                                        currentUser={currentUser}
-                                        onLike={handleLike}
-                                    />
-                                ))}
+                                {(() => {
+                                    // Sort posts by eventDate descending (newest first)
+                                    // Fallback to createdAt if eventDate is missing
+                                    const sorted = [...filteredPosts].sort((a, b) => {
+                                        const dateA = a.eventDate ? new Date(a.eventDate) : new Date(a.createdAt);
+                                        const dateB = b.eventDate ? new Date(b.eventDate) : new Date(b.createdAt);
+                                        return dateB - dateA;
+                                    });
+
+                                    const displayedPosts = sorted.slice(0, currentPage * ITEMS_PER_PAGE);
+                                    
+                                    // Group by date
+                                    const grouped = displayedPosts.reduce((acc, post) => {
+                                        const dateStr = post.eventDate 
+                                            ? new Date(post.eventDate).toLocaleDateString('en-GB', { 
+                                                weekday: 'long', 
+                                                day: 'numeric', 
+                                                month: 'long',
+                                                year: 'numeric'
+                                            })
+                                            : 'UNSCHEDULED';
+                                        
+                                        if (acc.length > 0 && acc[acc.length - 1].date === dateStr) {
+                                            acc[acc.length - 1].posts.push(post);
+                                        } else {
+                                            acc.push({ date: dateStr, posts: [post] });
+                                        }
+                                        return acc;
+                                    }, []);
+
+                                    return grouped.map((group, gIndex) => (
+                                        <div key={group.date} className="space-y-6">
+                                            <div className="flex items-center gap-4 py-2 sticky top-[-1px] z-30 bg-white/95 backdrop-blur-sm border-b-2 border-black -mx-4 px-4 md:-mx-10 md:px-10">
+                                                <div className="bg-black text-white px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] italic shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
+                                                    {group.date}
+                                                </div>
+                                                <div className="flex-1 h-[1px] bg-black/5" />
+                                                <div className="text-[8px] font-black text-black/30 uppercase tracking-widest">
+                                                    {group.posts.length} {group.posts.length === 1 ? 'Design' : 'Designs'}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="space-y-10">
+                                                {group.posts.map((post, pIndex) => (
+                                                    <PostItem
+                                                        key={post._id}
+                                                        post={post}
+                                                        index={pIndex}
+                                                        currentUser={currentUser}
+                                                        onLike={handleLike}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ));
+                                })()}
                                 
                                 {filteredPosts.length > currentPage * ITEMS_PER_PAGE && (
                                     <button
                                         onClick={() => setCurrentPage(prev => prev + 1)}
-                                        className="w-full py-4 border-2 border-black font-black uppercase tracking-widest text-xs hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000]"
+                                        className="w-full py-6 border-2 border-black bg-white font-black uppercase tracking-[0.3em] text-[10px] hover:bg-black hover:text-white transition-all shadow-[8px_8px_0px_#000] active:shadow-none active:translate-x-1 active:translate-y-1"
                                     >
-                                        Load More Posts
+                                        Load More From History
                                     </button>
                                 )}
                             </>
@@ -242,13 +289,22 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
     
     const firstMedia = mediaList[0] || {};
 
+    const [showComments, setShowComments] = useState(false);
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className={`relative backdrop-blur-md bg-white/70 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.7)] overflow-hidden transition-all ${isLocalNew ? 'ring-2 ring-primary-600 ring-offset-2' : ''}`}
+            className="relative backdrop-blur-md bg-white/70 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.7)] overflow-hidden transition-all"
         >
+            {/* New Post Badge */}
+            {isLocalNew && (
+                <div className="absolute top-0 left-0 bg-primary-600 text-white text-[9px] font-black px-4 py-1.5 uppercase tracking-widest z-30 border-b-2 border-r-2 border-black shadow-[2px_2px_0px_rgba(0,0,0,0.5)] animate-pulse">
+                    New Post
+                </div>
+            )}
+
             {/* Top-right badges */}
             <div className="absolute top-4 right-4 flex flex-col items-end gap-1.5 z-20 pointer-events-none">
                 <div className="flex gap-1">
@@ -268,7 +324,7 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
             </div>
 
             {/* Post Header */}
-            <div className="p-4 flex items-center justify-between border-b border-black/10 bg-white/30">
+            <div className="p-4 flex items-center justify-between border-b border-black/10 bg-white/30 pt-8">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-black border-2 border-black">
                         {post.createdBy?.name?.charAt(0) || <UserIcon size={18} />}
@@ -278,11 +334,6 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                             <h4 className="text-xs font-black uppercase tracking-tight text-black">
                                 {post.createdBy?.name || 'Admin'}
                             </h4>
-                            {isLocalNew && (
-                                <span className="bg-primary-600 text-white text-[7px] font-black px-1.5 py-0.5 uppercase tracking-widest animate-pulse">
-                                    New
-                                </span>
-                            )}
                         </div>
                         <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">
                             {new Date(post.createdAt).toLocaleDateString()} • HO SOCIAL
@@ -313,10 +364,10 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                     </p>
 
                     {post.eventDate && (
-    <p className="text-[9px] font-black uppercase text-primary-600 tracking-widest">
-        Event: {new Date(post.eventDate).toLocaleDateString()}
-    </p>
-)}
+                        <p className="text-[9px] font-black uppercase text-primary-600 tracking-widest">
+                            Event: {new Date(post.eventDate).toLocaleDateString()}
+                        </p>
+                    )}
 
                 </div>
 
@@ -368,22 +419,46 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                         className={`flex items-center gap-2 group transition-colors ${isLiked ? 'text-primary-600' : 'text-black hover:text-primary-600'}`}
                     >
                         <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} className={isLiked ? 'scale-110' : 'group-hover:scale-110 transition-transform'} />
-                        <span className="text-[10px] font-black uppercase tracking-widest">{post.likes?.length || 0}</span>
+                        <div className="flex flex-col items-start">
+                            <span className="text-[10px] font-black uppercase tracking-widest">{post.likes?.length || 0}</span>
+                            {post.likes?.length > 0 && (
+                                <span className="text-[6px] font-bold text-gray-400 uppercase tracking-tighter max-w-[100px] truncate">
+                                    {post.likes.map(u => u.name).join(', ')}
+                                </span>
+                            )}
+                        </div>
                     </button>
-                    <div className="flex items-center gap-2 text-black/40">
+                    <button 
+                        onClick={() => setShowComments(!showComments)}
+                        className={`flex items-center gap-2 transition-colors ${showComments ? 'text-primary-600' : 'text-black/40 hover:text-black'}`}
+                    >
                         <MessageSquare size={18} />
                         <span className="text-[10px] font-black uppercase tracking-widest">
                             {post.commentCount || 0}
                         </span>
-                    </div>
+                    </button>
                 </div>
                 <button 
                     onClick={handleNavigate}
                     className="text-[8px] font-black uppercase tracking-widest text-primary-600 hover:underline"
                 >
-                    Details & Comments →
+                    View Briefing →
                 </button>
             </div>
+
+            {/* Expandable Comment Section */}
+            <AnimatePresence>
+                {showComments && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden bg-gray-50/50"
+                    >
+                        <CommentSection postId={post._id} user={currentUser} />
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </motion.div>
     );
 };

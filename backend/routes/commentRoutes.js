@@ -18,21 +18,25 @@ const {
     addComment, 
     getComments, 
     getAdminNotifications, 
-    getUserNotifications 
+    getUserNotifications,
+    updateComment,
+    deleteComment,
+    deleteAllComments
 } = require('../controllers/commentController');
 
 const { protect, admin } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// ====================== PUBLIC ROUTES (Demo Mode) ======================
-router.get('/user/notifications', getUserNotifications);     // Notifications for users
-router.get('/:postId', getComments);                         // ← Anyone can read comments
-router.post('/', addComment);                                // ← Anyone can add comments
-
-// ====================== PROTECTED ROUTES ======================
+// Protect all routes
 router.use(protect);
 
+router.get('/user/notifications', getUserNotifications);
 router.get('/admin/notifications', admin, getAdminNotifications);
+router.get('/:postId', getComments);
+router.post('/', addComment);
+router.put('/:id', updateComment);
+router.delete('/:id', deleteComment);
+router.delete('/post/:postId', admin, deleteAllComments);
 
 module.exports = router;

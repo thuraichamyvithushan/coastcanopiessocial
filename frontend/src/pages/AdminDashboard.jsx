@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-    Users, FileText, CheckCircle, Clock,
+    Users, FileText, CheckCircle, Clock, Heart,
     ArrowRight, PlusSquare, MessageSquare,
     Archive, ArchiveRestore, Trash2, PlayCircle, Edit3, X as CloseIcon, UserPlus, Search,
     ChevronLeft, ChevronRight,
@@ -145,16 +145,22 @@ const AdminDashboard = () => {
         } catch { toast.error('Failed to delete'); }
     };
 
-    const posts = (tab === 'active' ? activePosts : archivedPosts).filter(post => {
-        const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase());
-        let matchesSubFilter = true;
-        if (subFilter === 'Instagram') matchesSubFilter = post.platforms?.includes('Instagram');
-        else if (subFilter === 'Facebook') matchesSubFilter = post.platforms?.includes('Facebook');
-        else if (subFilter === 'New Zealand') matchesSubFilter = post.regions?.includes('New Zealand');
-        else if (subFilter === 'Australia') matchesSubFilter = post.regions?.includes('Australia');
-        
-        return matchesSearch && matchesSubFilter;
-    });
+    const posts = (tab === 'active' ? activePosts : archivedPosts)
+        .filter(post => {
+            const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase());
+            let matchesSubFilter = true;
+            if (subFilter === 'Instagram') matchesSubFilter = post.platforms?.includes('Instagram');
+            else if (subFilter === 'Facebook') matchesSubFilter = post.platforms?.includes('Facebook');
+            else if (subFilter === 'New Zealand') matchesSubFilter = post.regions?.includes('New Zealand');
+            else if (subFilter === 'Australia') matchesSubFilter = post.regions?.includes('Australia');
+            
+            return matchesSearch && matchesSubFilter;
+        })
+        .sort((a, b) => {
+            const dateA = a.eventDate ? new Date(a.eventDate) : new Date(a.createdAt);
+            const dateB = b.eventDate ? new Date(b.eventDate) : new Date(b.createdAt);
+            return dateB - dateA;
+        });
 
     const totalPages = Math.ceil(posts.length / ITEMS_PER_PAGE);
     const paginatedPosts = posts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -371,25 +377,61 @@ const AdminDashboard = () => {
                                     )}
                                 </div>
                             ) : (
-                                <div className="space-y-8">
-                                    <div className={`grid grid-cols-1 gap-0 border-t border-l border-black ${tab === 'archive' ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2'}`}>
-                                        <AnimatePresence>
-                                            {paginatedPosts.map((post, index) => (
-                                                <AdminPostCard
-                                                    key={post._id}
-                                                    post={post}
-                                                    index={index}
-                                                    archived={tab === 'archive'}
-                                                    deleteConfirm={deleteConfirm}
-                                                    onArchive={handleArchive}
-                                                    onUnarchive={handleUnarchive}
-                                                    onEdit={() => setEditingPost(post)}
-                                                    onDeleteRequest={setDeleteConfirm}
-                                                    onDeleteConfirm={handleDelete}
-                                                    onDeleteCancel={() => setDeleteConfirm(null)}
-                                                />
-                                            ))}
-                                        </AnimatePresence>
+                                <>
+                                    <div className="space-y-12">
+                                        {(() => {
+                                            // Group paginated posts by date
+                                            const grouped = paginatedPosts.reduce((acc, post) => {
+                                                const dateStr = post.eventDate 
+                                                    ? new Date(post.eventDate).toLocaleDateString('en-GB', { 
+                                                        weekday: 'long', 
+                                                        day: 'numeric', 
+                                                        month: 'long',
+                                                        year: 'numeric'
+                                                    })
+                                                    : 'NO EVENT DATE';
+                                                
+                                                if (acc.length > 0 && acc[acc.length - 1].date === dateStr) {
+                                                    acc[acc.length - 1].posts.push(post);
+                                                } else {
+                                                    acc.push({ date: dateStr, posts: [post] });
+                                                }
+                                                return acc;
+                                            }, []);
+
+                                            return grouped.map((group, gIndex) => (
+                                                <div key={group.date} className="space-y-4">
+                                                    <div className="flex items-center gap-3 py-2 border-b-2 border-black sticky top-0 z-20 bg-gray-50/90 backdrop-blur-sm -mx-4 px-4 md:mx-0 md:px-0">
+                                                        <div className="bg-primary-600 text-white px-3 py-1 text-[9px] font-black uppercase tracking-widest italic">
+                                                            {group.date}
+                                                        </div>
+                                                        <div className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">
+                                                            {group.posts.length} {group.posts.length === 1 ? 'Post' : 'Posts'} Scheduled
+                                                        </div>
+                                                    </div>
+
+                                                    <div className={`grid grid-cols-1 gap-0 border-t border-l border-black ${tab === 'archive' ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2'}`}>
+                                                        <AnimatePresence>
+                                                            {group.posts.map((post, index) => (
+                                                                <AdminPostCard
+                                                                    key={post._id}
+                                                                    post={post}
+                                                                    index={index}
+                                                                    archived={tab === 'archive'}
+                                                                    deleteConfirm={deleteConfirm}
+                                                                    onArchive={handleArchive}
+                                                                    onUnarchive={handleUnarchive}
+                                                                    onEdit={() => setEditingPost(post)}
+                                                                    onDeleteRequest={setDeleteConfirm}
+                                                                    onDeleteConfirm={handleDelete}
+                                                                    onDeleteCancel={() => setDeleteConfirm(null)}
+                                                                />
+                                                            ))}
+                                                        </AnimatePresence>
+                                                    </div>
+                                                </div>
+                                            ));
+                                        })()}
                                     </div>
 
                                     {/* Pagination UI */}
@@ -425,7 +467,7 @@ const AdminDashboard = () => {
                                             </button>
                                         </div>
                                     )}
-                                </div>
+                                </>
                             )}
                         </motion.div>
                     </AnimatePresence>
@@ -613,6 +655,11 @@ const AdminPostCard = ({ post, index, archived, deleteConfirm, onArchive, onUnar
                 <div className="flex-1 min-w-0">
                     <p className="text-xs font-black uppercase tracking-tight truncate">{post.title}</p>
                     <p className="text-[8px] text-gray-400 uppercase tracking-widest mt-1 line-clamp-2 whitespace-pre-wrap">{post.description}</p>
+                    {post.likes?.length > 0 && (
+                        <p className="text-[7px] font-black text-primary-600 uppercase tracking-widest mt-2 flex items-center gap-1">
+                            <Heart size={8} fill="currentColor" /> {post.likes.length} Likes • {post.likes.slice(0, 2).map(u => u.name).join(', ')}{post.likes.length > 2 ? '...' : ''}
+                        </p>
+                    )}
                 </div>
 
                 {post.unreadReplies > 0 && (

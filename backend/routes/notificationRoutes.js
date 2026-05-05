@@ -16,7 +16,8 @@ const express = require('express');
 const { 
     getAdminNotifications, 
     getUserNotifications, 
-    markAsRead 
+    markAsRead,
+    markAllAsRead
 } = require('../controllers/notificationController');
 
 const { protect, admin } = require('../middleware/authMiddleware');
@@ -32,5 +33,6 @@ router.use(protect);
 
 router.get('/admin', admin, getAdminNotifications);
 router.put('/read', markAsRead);
+router.put('/read-all', markAllAsRead);
 
 module.exports = router;
