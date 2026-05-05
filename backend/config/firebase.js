@@ -6,7 +6,25 @@ let serviceAccount;
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     console.log('Firebase: Attempting to load from environment variable...');
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    
+    let rawJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+    
+    // Base64 decode support (a common trick to avoid Vercel parsing issues)
+    if (!rawJson.trim().startsWith('{')) {
+        try {
+            rawJson = Buffer.from(rawJson, 'base64').toString('utf8');
+        } catch (e) {
+            // ignore
+        }
+    }
+    
+    serviceAccount = JSON.parse(rawJson);
+    
+    // Vercel often double-escapes newlines in env variables. Fix it here.
+    if (serviceAccount && serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+    
     console.log('Firebase: Environment variable parsed successfully.');
   } else {
     const keyPath = path.join(__dirname, 'serviceAccountKey.json');
@@ -18,7 +36,7 @@ try {
   }
 } catch (error) {
   console.error('CRITICAL FIREBASE ERROR:', error.message);
-  console.error('Check if FIREBASE_SERVICE_ACCOUNT is valid JSON in Vercel settings.');
+  console.error('Check if FIREBASE_SERVICE_ACCOUNT is valid JSON in Vercel settings. You can also Base64 encode it.');
 }
 
 if (!admin.apps.length && serviceAccount) {
