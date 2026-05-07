@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const crypto = require('crypto');
 const sendEmail = require('../utils/sendEmail');
 const mongoose = require('mongoose');
@@ -45,7 +46,6 @@ exports.registerUser = async (req, res) => {
             });
 
             // Create notification for admin
-            const Notification = mongoose.model('Notification');
             await Notification.create({
                 type: 'registration',
                 message: `New portal access request from ${name} (${email}).`,
@@ -108,7 +108,6 @@ exports.loginUser = async (req, res) => {
         if (user && (await user.comparePassword(password, user.password))) {
             if (user.status !== 'approved') {
                 // Notifiy admin of login attempt from pending user
-                const Notification = mongoose.model('Notification');
                 await Notification.create({
                     type: 'login_attempt',
                     message: `Pending user ${user.name} (${user.email}) attempted to log in.`,
@@ -238,10 +237,25 @@ exports.resetPassword = async (req, res) => {
 exports.firebaseAuth = async (req, res) => {
     const { idToken } = req.body;
 
+    if (!idToken) {
+        return res.status(400).json({ message: 'Firebase ID token is required' });
+    }
+
     try {
         // 1. Verify Firebase Token
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        const { uid, email, name, picture } = decodedToken;
+        let decodedToken;
+        try {
+            decodedToken = await admin.auth().verifyIdToken(idToken);
+        } catch (authError) {
+            console.error('Firebase Token Verification Failed:', authError.message);
+            return res.status(401).json({ message: 'Invalid or expired Firebase token', error: authError.message });
+        }
+
+        const { uid, email, name } = decodedToken;
+
+        if (!email) {
+            return res.status(400).json({ message: 'Email not provided by Firebase' });
+        }
 
         // 2. Find user in MongoDB
         let user = await User.findOne({ email });
@@ -254,20 +268,26 @@ exports.firebaseAuth = async (req, res) => {
             }
         } else {
             // 3. Create new user if doesn't exist
-            user = await User.create({
-                name: name || email.split('@')[0],
-                email: email,
-                firebaseUid: uid,
-                status: 'approved' // Automatically approve Firebase users
-            });
+            console.log(`Creating new user for ${email}...`);
+            try {
+                user = await User.create({
+                    name: name || email.split('@')[0],
+                    email: email,
+                    firebaseUid: uid,
+                    status: 'approved' // Automatically approve Firebase users
+                });
 
-            // Log the new registration (optional)
-            const Notification = mongoose.model('Notification');
-            await Notification.create({
-                type: 'registration',
-                message: `New automatic approval for ${user.name} (${email}).`,
-                userId: user._id
-            });
+                // Create notification for admin
+                await Notification.create({
+                    type: 'registration',
+                    message: `New automatic approval for ${user.name} (${email}).`,
+                    userId: user._id
+                });
+                console.log(`User ${email} created successfully.`);
+            } catch (createError) {
+                console.error('User Creation Failed:', createError);
+                return res.status(500).json({ message: 'Failed to create user in database', error: createError.message });
+            }
         }
 
         // 4. Ensure existing user is also approved if they are logging in via Firebase
@@ -287,7 +307,7 @@ exports.firebaseAuth = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Firebase Auth Error:', error);
-        res.status(401).json({ message: 'Invalid or expired Firebase token' });
+        console.error('General Firebase Auth Error:', error);
+        res.status(500).json({ message: 'Internal Server Error during Firebase authentication', error: error.message });
     }
 };
