@@ -10,6 +10,7 @@ import {
 import api from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { resolveMediaUrl } from '../utils/media';
 
 const TABS = [
     { key: 'active', label: 'Live Posts' },
@@ -42,8 +43,6 @@ const AdminDashboard = () => {
         { key: 'all', label: 'All' },
         { key: 'Facebook', label: 'Facebook' },
         { key: 'Instagram', label: 'Instagram' },
-        { key: 'Australia', label: 'Australia' },
-        { key: 'New Zealand', label: 'New Zealand' },
     ];
 
     // Update tab if URL param changes
@@ -151,8 +150,6 @@ const AdminDashboard = () => {
             let matchesSubFilter = true;
             if (subFilter === 'Instagram') matchesSubFilter = post.platforms?.includes('Instagram');
             else if (subFilter === 'Facebook') matchesSubFilter = post.platforms?.includes('Facebook');
-            else if (subFilter === 'New Zealand') matchesSubFilter = post.regions?.includes('New Zealand');
-            else if (subFilter === 'Australia') matchesSubFilter = post.regions?.includes('Australia');
             
             return matchesSearch && matchesSubFilter;
         })
@@ -182,7 +179,7 @@ const AdminDashboard = () => {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-4 border-black pb-8">
                 <div>
                     <h1 className="text-2xl md:text-6xl font-black text-black tracking-tighter uppercase italic">
-                        HO <span className="text-primary-600">Social.</span>
+                        Coast Canopies <span className="text-primary-600">Social.</span>
                     </h1>
                     <p className="text-gray-400 font-bold uppercase tracking-[0.2em] md:tracking-[0.3em] text-[10px] md:text-xs mt-2">
                         Manage designs & track engagement
@@ -499,7 +496,6 @@ const EditModal = ({ post, allUsers, onClose, onUpdate }) => {
     const [title, setTitle] = useState(post.title);
     const [description, setDescription] = useState(post.description);
     const [selectedPlatforms, setSelectedPlatforms] = useState(post.platforms || []);
-    const [selectedRegions, setSelectedRegions] = useState(post.regions || []);
     const [loading, setLoading] = useState(false);
 
     const [eventDate, setEventDate] = useState(
@@ -510,10 +506,6 @@ const EditModal = ({ post, allUsers, onClose, onUpdate }) => {
         setSelectedPlatforms(prev => prev.includes(p) ? prev.filter(i => i !== p) : [...prev, p]);
     };
 
-    const toggleRegion = (r) => {
-        setSelectedRegions(prev => prev.includes(r) ? prev.filter(i => i !== r) : [...prev, r]);
-    };
-
     const handleUpdate = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -522,7 +514,7 @@ const EditModal = ({ post, allUsers, onClose, onUpdate }) => {
                 title,
                 description,
                 platforms: JSON.stringify(selectedPlatforms),
-                regions: JSON.stringify(selectedRegions),
+                regions: JSON.stringify([]),
                 eventDate: eventDate || null
             });
             onUpdate(data);
@@ -566,41 +558,20 @@ const EditModal = ({ post, allUsers, onClose, onUpdate }) => {
     />
 </div>
 
-                    <div className="grid grid-cols-2 gap-8">
-                        {/* Social Media */}
-                        <div className="space-y-4">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em]">Social Media</label>
-                            <div className="space-y-2">
-                                {['Facebook', 'Instagram'].map(p => (
-                                    <label key={p} className="flex items-center gap-3 cursor-pointer group">
-                                        <div 
-                                            onClick={() => togglePlatform(p)}
-                                            className={`w-4 h-4 border-2 border-black transition-all flex items-center justify-center ${selectedPlatforms.includes(p) ? 'bg-black' : 'bg-white'}`}
-                                        >
-                                            {selectedPlatforms.includes(p) && <div className="w-1.5 h-1.5 bg-primary-600" />}
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-primary-600 transition-colors">{p}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Region */}
-                        <div className="space-y-4">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em]">Region</label>
-                            <div className="space-y-2">
-                                {['Australia', 'New Zealand'].map(r => (
-                                    <label key={r} className="flex items-center gap-3 cursor-pointer group">
-                                        <div 
-                                            onClick={() => toggleRegion(r)}
-                                            className={`w-4 h-4 border-2 border-black transition-all flex items-center justify-center ${selectedRegions.includes(r) ? 'bg-black' : 'bg-white'}`}
-                                        >
-                                            {selectedRegions.includes(r) && <div className="w-1.5 h-1.5 bg-primary-600" />}
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-primary-600 transition-colors">{r}</span>
-                                    </label>
-                                ))}
-                            </div>
+                    <div className="space-y-4">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em]">Social Media</label>
+                        <div className="space-y-2">
+                            {['Facebook', 'Instagram'].map(p => (
+                                <label key={p} className="flex items-center gap-3 cursor-pointer group">
+                                    <div 
+                                        onClick={() => togglePlatform(p)}
+                                        className={`w-4 h-4 border-2 border-black transition-all flex items-center justify-center ${selectedPlatforms.includes(p) ? 'bg-black' : 'bg-white'}`}
+                                    >
+                                        {selectedPlatforms.includes(p) && <div className="w-1.5 h-1.5 bg-primary-600" />}
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-primary-600 transition-colors">{p}</span>
+                                </label>
+                            ))}
                         </div>
                     </div>
                 </form>
@@ -640,7 +611,7 @@ const AdminPostCard = ({ post, index, archived, deleteConfirm, onArchive, onUnar
                 <div className="w-20 h-14 shrink-0 bg-gray-100 overflow-hidden border border-black/10 relative">
                     {firstMedia.url ? (
                         firstMedia.type === 'image'
-                            ? <img src={firstMedia.url?.startsWith('http') ? firstMedia.url : `http://localhost:5000${firstMedia.url}`} className="w-full h-full object-cover" alt="" />
+                            ? <img src={resolveMediaUrl(firstMedia.url)} className="w-full h-full object-cover" alt="" />
                             : <div className="w-full h-full bg-gray-900 flex items-center justify-center"><PlayCircle size={18} className="text-white" /></div>
                     ) : <div className="w-full h-full bg-gray-100" />}
                     

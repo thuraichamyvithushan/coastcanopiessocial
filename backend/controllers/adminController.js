@@ -27,26 +27,26 @@ exports.updateUserStatus = async (req, res) => {
 
             if (status === 'approved') {
                 try {
-                    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+                    const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
                     const htmlMessage = `
-                    <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #000; padding: 40px; background-color: #fff; text-align: left;">
+                    <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #000; padding: 40px; background-color: #fffdf7; text-align: left;">
                         <h2 style="font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 20px; color: #000;">Account Approved.</h2>
-                        <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 30px;">
+                        <p style="font-size: 16px; color: #000; line-height: 1.6; margin-bottom: 30px;">
                             Hello ${user.name},<br><br>
                             Your account has been approved by the administrator. You can now log in to the platform.
                         </p>
-                        <a href="${frontendUrl}/login" style="display: inline-block; background: #000; color: #fff; text-decoration: none; padding: 20px 40px; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; border: 2px solid #000; box-shadow: 6px 6px 0px #ff3e3e;">
+                        <a href="${frontendUrl}/login" style="display: inline-block; background: #f9bf1e; color: #000; text-decoration: none; padding: 20px 40px; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; border: 2px solid #000; box-shadow: 6px 6px 0px #000;">
                             Login Now
                         </a>
-                        <p style="margin-top: 50px; font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 1px;">
-                            Best regards,<br>HO SOCIAL Team
+                        <p style="margin-top: 50px; font-size: 10px; color: #000; text-transform: uppercase; letter-spacing: 1px;">
+                            Best regards,<br>Coast Canopies Social Team
                         </p>
                     </div>
                     `;
 
                     await sendEmail({
                         email: user.email,
-                        subject: 'Account Approved - HO SOCIAL',
+                        subject: 'Account Approved - Coast Canopies Social',
                         html: htmlMessage
                     });
                 } catch (err) {

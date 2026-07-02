@@ -1,0 +1,15 @@
+<svg width="460" height="96" viewBox="0 0 460 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(4 6)">
+    <circle cx="38" cy="42" r="34" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+    <circle cx="38" cy="42" r="31" fill="#D71920" stroke="#101010" stroke-width="2"/>
+    <path d="M38 2V22" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+    <path d="M38 62V82" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+    <path d="M-2 42H18" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+    <path d="M58 42H78" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+    <path d="M38 12V72" stroke="#101010" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+    <path d="M8 42H68" stroke="#101010" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+    <circle cx="38" cy="42" r="12.5" fill="none" stroke="#101010" stroke-width="3"/>
+  </g>
+  <text x="96" y="43" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="900" letter-spacing="1.5">COAST</text>
+  <text x="96" y="76" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="800" letter-spacing="5">CANOPIES</text>
+</svg>

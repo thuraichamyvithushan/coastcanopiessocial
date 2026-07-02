@@ -200,7 +200,7 @@ exports.getUserNotifications = async (req, res) => {
             postId: n.postId?._id,
             type: n.type,
             postTitle: n.postId?.title || 'System',
-            userName: 'HO SOCIAL',
+            userName: 'Coast Canopies Social',
             comment: n.message,
             createdAt: n.createdAt,
             count: 1

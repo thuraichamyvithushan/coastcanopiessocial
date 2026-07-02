@@ -15,6 +15,7 @@ require('./models/Notification');
 // Route files
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const mediaRoutes = require('./routes/mediaRoutes');
 const postRoutes = require('./routes/postRoutes');
 const commentRoutes = require('./routes/commentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
@@ -27,6 +28,7 @@ connectDB().catch(err => {
 });
 
 const app = express();
+const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL;
 
 // Body parser
 app.use(express.json());
@@ -35,8 +37,8 @@ app.use(express.json());
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://huntsmansocial.vercel.app',
-    process.env.CLIENT_URL // For production Vercel URL
+    'https://coastcanopiessocial.vercel.app',
+    frontendUrl
 ].filter(Boolean);
 
 app.use(cors({
@@ -65,13 +67,13 @@ if (process.env.NODE_ENV === 'development') {
     app.use(morgan('dev'));
 }
 
-// Set static folder
+// Keep legacy local uploads readable while new uploads live in MongoDB/GridFS.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Health Check / Root Route
 app.get('/', (req, res) => {
     res.json({
-        status: 'HO SOCIAL Server is Live.',
+        status: 'Coast Canopies Social Server is Live.',
         uptime: process.uptime(),
         timestamp: new Date().toISOString()
     });
@@ -80,6 +82,7 @@ app.get('/', (req, res) => {
 // Mount routers
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/media', mediaRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
@@ -96,8 +99,20 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
         console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+    });
+
+    server.on('error', (error) => {
+        if (error.code === 'EADDRINUSE') {
+            console.error(`Port ${PORT} is already in use.`);
+            console.error('Another backend instance is already running, or another app is using this port.');
+            console.error('Stop the existing process or change PORT in backend/.env and VITE_API_BASE_URL in frontend/.env.');
+            process.exit(1);
+        }
+
+        console.error('Server startup failed:', error.message);
+        process.exit(1);
     });
 }
 

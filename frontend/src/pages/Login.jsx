@@ -5,10 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import { auth } from '../config/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import logo from '../assets/logo.png';
-import authBg from '../assets/auth2.webp';
+import logo from '../assets/cclogo.png';
+import authBg from '../assets/auth.png';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -22,30 +20,17 @@ const Login = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            // 1. Sign in with Firebase
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const idToken = await userCredential.user.getIdToken();
-
-            // 2. Send token to our backend to get app-specific user data (role, status, etc)
-            // 2. Send token to our backend to get app-specific user data (role, status, etc)
-            console.log('Sending token to backend...');
-            const { data } = await api.post('/auth/firebase', { idToken });
-            console.log('Backend response received:', data);
+            const { data } = await api.post('/auth/login', { email, password });
             
             if (!data.role) {
-                console.error('CRITICAL: User role is missing from backend response!');
                 toast.error('Login failed: Invalid user data from server');
                 setLoading(false);
                 return;
             }
 
-            // 3. Save user info
             login(data);
-            console.log('User state set. Redirecting to:', data.role === 'admin' ? '/admin-dashboard' : '/dashboard');
-            
             toast.success('Welcome back!');
             
-            // 4. Redirect based on role
             setTimeout(() => {
                 if (data.role === 'admin') navigate('/admin-dashboard', { replace: true });
                 else navigate('/dashboard', { replace: true });
@@ -68,7 +53,7 @@ const Login = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60"></div>
                 </div>
                 <div className="relative z-10">
-                    <img src={logo} alt="HO SOCIAL" className="h-12 w-auto object-contain mb-2" />
+                    <img src={logo} alt="Coast Canopies Social" className="h-16 xl:h-20 w-auto object-contain mb-2" />
                 </div>
 
                 <div className="relative z-10">
@@ -99,7 +84,7 @@ const Login = () => {
                                 <input
                                     type="email"
                                     required
-                                    placeholder="example@huntsmanoptics.com"
+                                    placeholder="example@coastcanopies.com"
                                     className="input-field"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}

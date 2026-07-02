@@ -3,22 +3,30 @@ const User = require('../models/User');
 const Comment = require('../models/Comment');
 const Notification = require('../models/Notification');
 const sendEmail = require('../utils/sendEmail');
-const { uploadToFirebase } = require('../utils/firebaseStorage');
+const { uploadBufferToGridFS } = require('../utils/gridfs');
 const ics = require('ics');
 
 // @desc    Create new post (supports multiple media files)
 // @route   POST /api/posts
 // @access  Private/Admin
 exports.createPost = async (req, res) => {
-    const { title, description, platforms, regions, eventDate  } = req.body;
+    const { title, description, platforms, eventDate  } = req.body;
 
     try {
-        // Build media array from uploaded files (Firebase Storage)
         const media = await Promise.all((req.files || []).map(async (file) => {
-            const publicUrl = await uploadToFirebase(file);
+            const uploadedFile = await uploadBufferToGridFS({
+                buffer: file.buffer,
+                filename: file.originalname,
+                contentType: file.mimetype
+            });
+
             return {
-                url: publicUrl,
-                type: file.mimetype.startsWith('video') ? 'video' : 'image'
+                url: `/api/media/${uploadedFile.fileId}`,
+                type: file.mimetype.startsWith('video') ? 'video' : 'image',
+                fileId: uploadedFile.fileId,
+                filename: file.originalname,
+                contentType: file.mimetype,
+                size: file.size
             };
         }));
 
@@ -33,7 +41,7 @@ exports.createPost = async (req, res) => {
             mediaUrl: firstMedia.url || '',
             mediaType: firstMedia.type || 'image',
             platforms: platforms ? JSON.parse(platforms) : [],
-            regions: regions ? JSON.parse(regions) : [],
+            regions: [],
             createdBy: req.user._id
         });
 
@@ -41,30 +49,31 @@ exports.createPost = async (req, res) => {
         const users = await User.find({ status: 'approved', role: 'user' });
         for (const user of users) {
             try {
-                const loginUrl = 'http://localhost:5173/login';
+                const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+                const loginUrl = `${frontendUrl}/login`;
                 await sendEmail({
                     email: user.email,
-                    subject: 'New Design Briefing - HO SOCIAL',
+                    subject: 'New Design Briefing - Coast Canopies Social',
                     message: `Hello ${user.name},\n\nA new design briefing "${post.title}" has been published. Login here: ${loginUrl}`,
                     html: `
-                            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 40px; background: #fff; border: 1px solid #eee;">
+                            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 40px; background: #fffdf7; border: 2px solid #000;">
                                 <h1 style="font-size: 40px; font-weight: 900; letter-spacing: -2px; text-transform: uppercase; font-style: italic; margin: 0 0 20px;">
-                                    HO <span style="color: #ff3e3e;">SOCIAL.</span>
+                                    COAST CANOPIES <span style="color: #f9bf1e;">SOCIAL.</span>
                                 </h1>
-                                <p style="text-transform: uppercase; font-size: 10px; font-weight: bold; letter-spacing: 2px; color: #999; margin-bottom: 40px;">Content Management Platform</p>
+                                <p style="text-transform: uppercase; font-size: 10px; font-weight: bold; letter-spacing: 2px; color: #000; margin-bottom: 40px;">Content Management Platform</p>
                                 
-                                <h2 style="font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px;">New Design Briefing Ready.</h2>
-                                <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 30px;">
+                                <h2 style="font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px; color: #000;">New Design Briefing Ready.</h2>
+                                <p style="font-size: 16px; color: #000; line-height: 1.6; margin-bottom: 30px;">
                                     Hello <strong>${user.name}</strong>,<br><br>
                                     A new design briefing is ready for review: <br>
-                                    <span style="font-style: italic; background: #f4f4f4; padding: 5px 10px; border-left: 4px solid #000; display: inline-block; margin-top: 10px;">"${post.title}"</span>
+                                    <span style="font-style: italic; background: #fff0bf; padding: 5px 10px; border-left: 4px solid #f9bf1e; display: inline-block; margin-top: 10px; color: #000;">"${post.title}"</span>
                                 </p>
                                 
-                                <a href="${loginUrl}" style="display: inline-block; background: #ff3e3e; color: #fff; text-decoration: none; padding: 20px 40px; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; border: 2px solid #000; box-shadow: 6px 6px 0px #000;">
+                                <a href="${loginUrl}" style="display: inline-block; background: #f9bf1e; color: #000; text-decoration: none; padding: 20px 40px; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; border: 2px solid #000; box-shadow: 6px 6px 0px #000;">
                                     View Post
                                 </a>
                                 
-                                <p style="margin-top: 50px; font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 1px;">
+                                <p style="margin-top: 50px; font-size: 10px; color: #000; text-transform: uppercase; letter-spacing: 1px;">
                                     This is an automated system notification. Please do not reply directly to this email.
                                 </p>
                             </div>
@@ -448,7 +457,7 @@ exports.unarchivePost = async (req, res) => {
 
 exports.updatePost = async (req, res) => {
     try {
-        const { title, description, platforms, regions, eventDate } = req.body;
+        const { title, description, platforms, eventDate } = req.body;
 
         const post = await Post.findById(req.params.id);
 
@@ -469,12 +478,7 @@ exports.updatePost = async (req, res) => {
                     : platforms;
         }
 
-        if (regions !== undefined) {
-            post.regions =
-                typeof regions === 'string'
-                    ? JSON.parse(regions)
-                    : regions;
-        }
+        post.regions = [];
 
         await post.save();
 
@@ -698,17 +702,21 @@ exports.sendCalendarInvites = async (req, res) => {
 
             const emailPromises = users.map(async (user) => {
                 const message = `
-                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                        <h2>Calendar Invite: ${post.title}</h2>
-                        <p>Hello ${user.name},</p>
-                        <p>You have been invited to an event related to the following post:</p>
-                        <div style="background: #f4f4f4; padding: 15px; margin: 15px 0;">
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; background: #fffdf7; border: 2px solid #000;">
+                        <h1 style="font-size: 40px; font-weight: 900; letter-spacing: -2px; text-transform: uppercase; font-style: italic; margin: 0 0 20px;">
+                            COAST CANOPIES <span style="color: #f9bf1e;">SOCIAL.</span>
+                        </h1>
+                        <p style="text-transform: uppercase; font-size: 10px; font-weight: bold; letter-spacing: 2px; color: #000; margin-bottom: 40px;">Content Management Platform</p>
+                        <h2 style="font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 20px; color: #000;">Calendar Invite: ${post.title}</h2>
+                        <p style="font-size: 16px; color: #000; line-height: 1.6;">Hello ${user.name},</p>
+                        <p style="font-size: 16px; color: #000; line-height: 1.6;">You have been invited to an event related to the following post:</p>
+                        <div style="background: #fff0bf; border-left: 4px solid #f9bf1e; padding: 15px; margin: 15px 0; color: #000;">
                             <strong>${post.title}</strong><br/>
                             <p>${post.description}</p>
                             <p><strong>Date:</strong> ${dateObj.toLocaleDateString()}</p>
                         </div>
-                        <p>Please find the attached calendar invite (.ics file) to add this event to your personal calendar.</p>
-                        <p>Best regards,<br/>HO SOCIAL Team</p>
+                        <p style="font-size: 16px; color: #000; line-height: 1.6;">Please find the attached calendar invite (.ics file) to add this event to your personal calendar.</p>
+                        <p style="margin-top: 50px; font-size: 10px; color: #000; text-transform: uppercase; letter-spacing: 1px;">Best regards,<br/>Coast Canopies Social Team</p>
                     </div>
                 `;
 

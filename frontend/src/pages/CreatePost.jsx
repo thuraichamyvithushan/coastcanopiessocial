@@ -7,17 +7,12 @@ const CreatePost = () => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [selectedPlatforms, setSelectedPlatforms] = useState([]);
-    const [selectedRegions, setSelectedRegions] = useState([]);
     const [mediaFiles, setMediaFiles] = useState([]); // [{file, preview, type}]
     const [loading, setLoading] = useState(false);
     const [eventDate, setEventDate] = useState('');
 
     const togglePlatform = (p) => {
         setSelectedPlatforms(prev => prev.includes(p) ? prev.filter(i => i !== p) : [...prev, p]);
-    };
-
-    const toggleRegion = (r) => {
-        setSelectedRegions(prev => prev.includes(r) ? prev.filter(i => i !== r) : [...prev, r]);
     };
 
     const handleFilesChange = (e) => {
@@ -47,13 +42,12 @@ const CreatePost = () => {
         formData.append('description', description);
         formData.append('eventDate', eventDate);
         formData.append('platforms', JSON.stringify(selectedPlatforms));
-        formData.append('regions', JSON.stringify(selectedRegions));
         mediaFiles.forEach(({ file }) => formData.append('media', file));
 
         try {
             await api.post('/posts', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
             toast.success('Post published!');
-            setTitle(''); setDescription(''); setMediaFiles([]); setSelectedPlatforms([]); setSelectedRegions([]);
+            setTitle(''); setDescription(''); setMediaFiles([]); setSelectedPlatforms([]);
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to publish');
         } finally {
@@ -99,41 +93,20 @@ const CreatePost = () => {
     />
 </div>
 
-                    <div className="grid grid-cols-2 gap-8">
-                        {/* Social Media */}
-                        <div className="space-y-4">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em]">Social Media</label>
-                            <div className="space-y-2">
-                                {['Facebook', 'Instagram'].map(p => (
-                                    <label key={p} className="flex items-center gap-3 cursor-pointer group">
-                                        <div 
-                                            onClick={() => togglePlatform(p)}
-                                            className={`w-5 h-5 border-2 border-black transition-all flex items-center justify-center ${selectedPlatforms.includes(p) ? 'bg-black' : 'bg-white'}`}
-                                        >
-                                            {selectedPlatforms.includes(p) && <div className="w-2 h-2 bg-primary-600" />}
-                                        </div>
-                                        <span className="text-[11px] font-black uppercase tracking-widest group-hover:text-primary-600 transition-colors">{p}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Region */}
-                        <div className="space-y-4">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em]">Region</label>
-                            <div className="space-y-2">
-                                {['Australia', 'New Zealand'].map(r => (
-                                    <label key={r} className="flex items-center gap-3 cursor-pointer group">
-                                        <div 
-                                            onClick={() => toggleRegion(r)}
-                                            className={`w-5 h-5 border-2 border-black transition-all flex items-center justify-center ${selectedRegions.includes(r) ? 'bg-black' : 'bg-white'}`}
-                                        >
-                                            {selectedRegions.includes(r) && <div className="w-2 h-2 bg-primary-600" />}
-                                        </div>
-                                        <span className="text-[11px] font-black uppercase tracking-widest group-hover:text-primary-600 transition-colors">{r}</span>
-                                    </label>
-                                ))}
-                            </div>
+                    <div className="space-y-4">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em]">Social Media</label>
+                        <div className="space-y-2">
+                            {['Facebook', 'Instagram'].map(p => (
+                                <label key={p} className="flex items-center gap-3 cursor-pointer group">
+                                    <div 
+                                        onClick={() => togglePlatform(p)}
+                                        className={`w-5 h-5 border-2 border-black transition-all flex items-center justify-center ${selectedPlatforms.includes(p) ? 'bg-black' : 'bg-white'}`}
+                                    >
+                                        {selectedPlatforms.includes(p) && <div className="w-2 h-2 bg-primary-600" />}
+                                    </div>
+                                    <span className="text-[11px] font-black uppercase tracking-widest group-hover:text-primary-600 transition-colors">{p}</span>
+                                </label>
+                            ))}
                         </div>
                     </div>
                 </div>

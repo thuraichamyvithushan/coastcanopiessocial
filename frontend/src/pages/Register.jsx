@@ -4,10 +4,8 @@ import { User, Mail, Lock, Loader2, CheckCircle2 } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import { auth } from '../config/firebase';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import logo from '../assets/logo.png';
-import authBg from '../assets/auth3.webp';
+import logo from '../assets/cclogo.png';
+import authBg from '../assets/auth.png';
 
 const Register = () => {
     const [name, setName] = useState('');
@@ -22,16 +20,7 @@ const Register = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            // 1. Create user in Firebase
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            
-            // 2. Add display name to Firebase profile
-            await updateProfile(userCredential.user, { displayName: name });
-            
-            // 3. Sync with our MongoDB backend
-            const idToken = await userCredential.user.getIdToken();
-            await api.post('/auth/firebase', { idToken });
-
+            await api.post('/auth/register', { name, email, password });
             setIsSuccess(true);
             toast.success('Registration successful!');
         } catch (error) {
@@ -95,7 +84,7 @@ const Register = () => {
                             <input
                                 type="email"
                                 required
-                                placeholder="example@huntsmanoptics.com"
+                                placeholder="example@coastcanopies.com"
                                 className="input-field"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
@@ -139,7 +128,7 @@ const Register = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60"></div>
                 </div>
                 <div className="relative z-10 flex flex-col items-end">
-                    <img src={logo} alt="HO SOCIAL" className="h-12 w-auto object-contain mb-2" />
+                    <img src={logo} alt="Coast Canopies Social" className="h-16 xl:h-20 w-auto object-contain mb-2" />
                 </div>
 
                 <div className="relative z-10">

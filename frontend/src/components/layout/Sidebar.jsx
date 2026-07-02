@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, PlusSquare, FileText, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import logo from '../../assets/logo.png';
+import logo from '../../assets/cclogo.png';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
     const { user, logout } = useAuth();
@@ -45,7 +45,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
                     {/* Brand */}
                     <div className={`px-6 pt-6 pb-4 md:pt-8 transition-all duration-300 ${isOpen ? 'opacity-100' : 'md:opacity-0 pointer-events-none'}`}>
-                        <img src={logo} alt="HO SOCIAL" className="h-10 md:h-12 w-auto object-contain" />
+                        <img src={logo} alt="Coast Canopies Social" className="h-14 md:h-16 w-auto object-contain" />
                     </div>
 
                     {/* Spacer when collapsed so first nav item clears the toggle button */}

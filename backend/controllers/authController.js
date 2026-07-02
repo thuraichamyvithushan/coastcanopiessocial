@@ -3,8 +3,54 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const crypto = require('crypto');
 const sendEmail = require('../utils/sendEmail');
-const mongoose = require('mongoose');
-const admin = require('../config/firebase');
+const connectDB = require('../config/db');
+
+const normalizeEmail = (email) => email?.trim().toLowerCase();
+
+const buildAuthResponse = (user) => ({
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+    token: generateToken(user._id)
+});
+
+const createNotificationSafely = async (payload, context) => {
+    try {
+        await Notification.create(payload);
+    } catch (error) {
+        console.error(`${context} notification failed:`, error.message);
+    }
+};
+
+const ensureDatabaseConnection = async () => {
+    try {
+        const connection = await connectDB();
+
+        if (connection?.connection?.readyState !== 1) {
+            throw new Error('Database connection is unavailable');
+        }
+    } catch (error) {
+        if (error?.message === 'MONGO_URI is missing from environment variables') {
+            throw error;
+        }
+
+        if (error?.message?.includes('ENOTFOUND') || error?.message?.includes('Server selection timed out')) {
+            throw new Error('Database connection is unavailable');
+        }
+
+        throw error;
+    }
+};
+
+const getStatusCodeForError = (error) => {
+    if (error.message === 'Database connection is unavailable') {
+        return 503;
+    }
+
+    return 500;
+};
 
 const generateToken = (id) => {
     if (!process.env.JWT_SECRET) {
@@ -19,9 +65,24 @@ const generateToken = (id) => {
 // @route   POST /api/auth/register
 // @access  Public
 exports.registerUser = async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, password } = req.body;
+    const email = normalizeEmail(req.body.email);
 
     try {
+        await ensureDatabaseConnection();
+
+        if (!name?.trim()) {
+            return res.status(400).json({ message: 'Name is required' });
+        }
+
+        if (!email) {
+            return res.status(400).json({ message: 'Email is required' });
+        }
+
+        if (!password || password.length < 6) {
+            return res.status(400).json({ message: 'Password must be at least 6 characters' });
+        }
+
         const userExists = await User.findOne({ email });
 
         if (userExists) {
@@ -46,34 +107,34 @@ exports.registerUser = async (req, res) => {
             });
 
             // Create notification for admin
-            await Notification.create({
+            await createNotificationSafely({
                 type: 'registration',
                 message: `New portal access request from ${name} (${email}).`,
                 userId: user._id
-            });
+            }, 'Registration');
 
             // Send email to admin if configured
             if (process.env.ADMIN_NOTIFICATION_EMAIL) {
                 try {
-                    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+                    const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
                     const htmlMessage = `
-                    <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #000; padding: 40px; background-color: #fff; text-align: left;">
+                    <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #000; padding: 40px; background-color: #fffdf7; text-align: left;">
                         <h2 style="font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 20px; color: #000;">New Member Request.</h2>
-                        <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 30px;">
+                        <p style="font-size: 16px; color: #000; line-height: 1.6; margin-bottom: 30px;">
                             A new user has registered and is pending approval:
                         </p>
-                        <div style="background: #f9f9f9; border: 1px solid #eee; padding: 20px; margin-bottom: 30px;">
+                        <div style="background: #fff0bf; border: 1px solid #f9bf1e; padding: 20px; margin-bottom: 30px;">
                             <p style="margin: 0 0 10px 0; font-size: 14px;"><strong>Name:</strong> ${name}</p>
                             <p style="margin: 0; font-size: 14px;"><strong>Email:</strong> ${email}</p>
                         </div>
-                        <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 30px;">
+                        <p style="font-size: 16px; color: #000; line-height: 1.6; margin-bottom: 30px;">
                             Please log in to the admin dashboard to review their request.
                         </p>
-                        <a href="${frontendUrl}/admin-dashboard" style="display: inline-block; background: #000; color: #fff; text-decoration: none; padding: 20px 40px; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; border: 2px solid #000; box-shadow: 6px 6px 0px #ff3e3e;">
+                        <a href="${frontendUrl}/admin-dashboard" style="display: inline-block; background: #f9bf1e; color: #000; text-decoration: none; padding: 20px 40px; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; border: 2px solid #000; box-shadow: 6px 6px 0px #000;">
                             Admin Dashboard
                         </a>
-                        <p style="margin-top: 50px; font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 1px;">
-                            HO SOCIAL SYSTEM ALERT
+                        <p style="margin-top: 50px; font-size: 10px; color: #000; text-transform: uppercase; letter-spacing: 1px;">
+                            COAST CANOPIES SOCIAL SYSTEM ALERT
                         </p>
                     </div>
                     `;
@@ -92,7 +153,7 @@ exports.registerUser = async (req, res) => {
         }
     } catch (error) {
         console.error('Registration Error:', error);
-        res.status(500).json({ message: error.message });
+        res.status(getStatusCodeForError(error)).json({ message: error.message });
     }
 };
 
@@ -100,19 +161,30 @@ exports.registerUser = async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 exports.loginUser = async (req, res) => {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = normalizeEmail(req.body.email);
 
     try {
+        await ensureDatabaseConnection();
+
+        if (!email) {
+            return res.status(400).json({ message: 'Email is required' });
+        }
+
+        if (!password) {
+            return res.status(400).json({ message: 'Password is required' });
+        }
+
         const user = await User.findOne({ email }).select('+password');
 
         if (user && (await user.comparePassword(password, user.password))) {
             if (user.status !== 'approved') {
                 // Notifiy admin of login attempt from pending user
-                await Notification.create({
+                await createNotificationSafely({
                     type: 'login_attempt',
                     message: `Pending user ${user.name} (${user.email}) attempted to log in.`,
                     userId: user._id
-                });
+                }, 'Pending login');
 
                 if (process.env.ADMIN_NOTIFICATION_EMAIL) {
                     try {
@@ -129,71 +201,77 @@ exports.loginUser = async (req, res) => {
                 return res.status(401).json({ message: 'Account pending admin approval' });
             }
 
-            res.json({
-                _id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                status: user.status,
-                token: generateToken(user._id)
-            });
+            res.json(buildAuthResponse(user));
         } else {
             res.status(401).json({ message: 'Invalid email or password' });
         }
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Login Error:', error);
+        res.status(getStatusCodeForError(error)).json({ message: error.message });
     }
 };
 // @desc    Forgot password
 // @route   POST /api/auth/forgotpassword
 // @access  Public
 exports.forgotPassword = async (req, res) => {
-    const user = await User.findOne({ email: req.body.email });
-
-    if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-    }
-
-    const resetToken = user.getResetPasswordToken();
-    await user.save({ validateBeforeSave: false });
-
-    // In a real prod environment, this should be the frontend URL
-    const resetUrl = `${req.protocol}://${req.get('host')}/api/auth/resetpassword/${resetToken}`;
-    // For local dev with separate frontend
-    const clientResetUrl = `http://localhost:5173/reset-password/${resetToken}`;
-
-    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a PUT request to: \n\n ${clientResetUrl}`;
+    const email = normalizeEmail(req.body.email);
 
     try {
-        await sendEmail({
-            email: user.email,
-            subject: 'Password reset token',
-            message,
-            html: `
-                <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 40px; background: #fff; border: 1px solid #eee;">
-                    <h1 style="font-size: 40px; font-weight: 900; letter-spacing: -2px; text-transform: uppercase; font-style: italic; margin: 0 0 20px;">
-                        HO <span style="color: #ff3e3e;">SOCIAL.</span>
-                    </h1>
-                    <h2 style="font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 20px;">Password Reset.</h2>
-                    <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 30px;">
-                        You requested a password reset. Click the button below to set a new password. This link is valid for 10 minutes.
-                    </p>
-                    <a href="${clientResetUrl}" style="display: inline-block; background: #000; color: #fff; text-decoration: none; padding: 20px 40px; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; border: 2px solid #000; box-shadow: 6px 6px 0px #ff3e3e;">
-                        Reset Password
-                    </a>
-                    <p style="margin-top: 50px; font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 1px;">
-                        If you did not request this, please ignore this email.
-                    </p>
-                </div>
-            `
-        });
+        if (!email) {
+            return res.status(400).json({ message: 'Email is required' });
+        }
 
-        res.status(200).json({ message: 'Email sent' });
-    } catch (err) {
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpire = undefined;
+        await ensureDatabaseConnection();
+
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const resetToken = user.getResetPasswordToken();
         await user.save({ validateBeforeSave: false });
-        res.status(500).json({ message: 'Email could not be sent' });
+
+        const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+        const clientResetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+
+        const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a PUT request to: \n\n ${clientResetUrl}`;
+
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: 'Password reset token',
+                message,
+                html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 40px; background: #fffdf7; border: 2px solid #000;">
+                        <h1 style="font-size: 40px; font-weight: 900; letter-spacing: -2px; text-transform: uppercase; font-style: italic; margin: 0 0 20px;">
+                            COAST CANOPIES <span style="color: #f9bf1e;">SOCIAL.</span>
+                        </h1>
+                        <p style="text-transform: uppercase; font-size: 10px; font-weight: bold; letter-spacing: 2px; color: #000; margin-bottom: 40px;">Content Management Platform</p>
+                        <h2 style="font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 20px; color: #000;">Password Reset.</h2>
+                        <p style="font-size: 16px; color: #000; line-height: 1.6; margin-bottom: 30px;">
+                            You requested a password reset. Click the button below to set a new password. This link is valid for 10 minutes.
+                        </p>
+                        <a href="${clientResetUrl}" style="display: inline-block; background: #f9bf1e; color: #000; text-decoration: none; padding: 20px 40px; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; border: 2px solid #000; box-shadow: 6px 6px 0px #000;">
+                            Reset Password
+                        </a>
+                        <p style="margin-top: 50px; font-size: 10px; color: #000; text-transform: uppercase; letter-spacing: 1px;">
+                            If you did not request this, please ignore this email.
+                        </p>
+                    </div>
+                `
+            });
+
+            res.status(200).json({ message: 'Email sent' });
+        } catch (err) {
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpire = undefined;
+            await user.save({ validateBeforeSave: false });
+            res.status(500).json({ message: 'Email could not be sent' });
+        }
+    } catch (error) {
+        console.error('Forgot Password Error:', error);
+        res.status(getStatusCodeForError(error)).json({ message: error.message });
     }
 };
 
@@ -201,113 +279,37 @@ exports.forgotPassword = async (req, res) => {
 // @route   PUT /api/auth/resetpassword/:resettoken
 // @access  Public
 exports.resetPassword = async (req, res) => {
-    const resetPasswordToken = crypto
-        .createHash('sha256')
-        .update(req.params.resettoken)
-        .digest('hex');
-
-    const user = await User.findOne({
-        resetPasswordToken,
-        resetPasswordExpire: { $gt: Date.now() }
-    });
-
-    if (!user) {
-        return res.status(400).json({ message: 'Invalid token' });
-    }
-
-    // Set new password
-    user.password = req.body.password;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-    await user.save();
-
-    res.status(200).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        token: generateToken(user._id)
-    });
-};
-
-// @desc    Firebase Auth (Login/Register sync)
-// @route   POST /api/auth/firebase
-// @access  Public
-exports.firebaseAuth = async (req, res) => {
-    const { idToken } = req.body;
-
-    if (!idToken) {
-        return res.status(400).json({ message: 'Firebase ID token is required' });
-    }
-
     try {
-        // 1. Verify Firebase Token
-        let decodedToken;
-        try {
-            decodedToken = await admin.auth().verifyIdToken(idToken);
-        } catch (authError) {
-            console.error('Firebase Token Verification Failed:', authError.message);
-            return res.status(401).json({ message: 'Invalid or expired Firebase token', error: authError.message });
+        await ensureDatabaseConnection();
+
+        if (!req.body.password || req.body.password.length < 6) {
+            return res.status(400).json({ message: 'Password must be at least 6 characters' });
         }
 
-        const { uid, email, name } = decodedToken;
+        const resetPasswordToken = crypto
+            .createHash('sha256')
+            .update(req.params.resettoken)
+            .digest('hex');
 
-        if (!email) {
-            return res.status(400).json({ message: 'Email not provided by Firebase' });
-        }
-
-        // 2. Find user in MongoDB
-        let user = await User.findOne({ email });
-
-        if (user) {
-            // Update firebaseUid if not set
-            if (!user.firebaseUid) {
-                user.firebaseUid = uid;
-                await user.save();
-            }
-        } else {
-            // 3. Create new user if doesn't exist
-            console.log(`Creating new user for ${email}...`);
-            try {
-                user = await User.create({
-                    name: name || email.split('@')[0],
-                    email: email,
-                    firebaseUid: uid,
-                    status: 'approved' // Automatically approve Firebase users
-                });
-
-                // Create notification for admin
-                await Notification.create({
-                    type: 'registration',
-                    message: `New automatic approval for ${user.name} (${email}).`,
-                    userId: user._id
-                });
-                console.log(`User ${email} created successfully.`);
-            } catch (createError) {
-                console.error('User Creation Failed:', createError);
-                return res.status(500).json({ message: 'Failed to create user in database', error: createError.message });
-            }
-        }
-
-        // 4. Ensure existing user is also approved if they are logging in via Firebase
-        if (user.status === 'pending') {
-            user.status = 'approved';
-            await user.save();
-        }
-
-        // 5. Generate our own JWT for the existing middleware compatibility
-        res.json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            status: user.status,
-            token: generateToken(user._id)
+        const user = await User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: { $gt: Date.now() }
         });
 
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid token' });
+        }
+
+        // Set new password
+        user.password = req.body.password;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+        await user.save();
+
+        res.status(200).json(buildAuthResponse(user));
     } catch (error) {
-        console.error('General Firebase Auth Error:', error);
-        res.status(500).json({ message: 'Internal Server Error during Firebase authentication', error: error.message });
+        console.error('Reset Password Error:', error);
+        res.status(getStatusCodeForError(error)).json({ message: error.message });
     }
 };
+

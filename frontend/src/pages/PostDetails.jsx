@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import CommentSection from '../components/CommentSection';
+import { resolveMediaUrl } from '../utils/media';
 
 const FacebookIcon = ({ size = 16 }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
@@ -14,6 +15,15 @@ const FacebookIcon = ({ size = 16 }) => (
 const InstagramIcon = ({ size = 16 }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
 );
+
+const getDownloadName = (media, postTitle, index) => {
+    if (media.filename) {
+        return media.filename;
+    }
+
+    const extension = media.contentType?.split('/')[1] || (media.type === 'video' ? 'mp4' : 'jpg');
+    return `COAST_CANOPIES_${postTitle.replace(/\s+/g, '_')}_${index + 1}.${extension}`;
+};
 
 const PostDetails = () => {
     const { id } = useParams();
@@ -62,13 +72,13 @@ const PostDetails = () => {
 
     const handleDownload = async (media) => {
         try {
-            const url = media.url?.startsWith('http') ? media.url : `http://localhost:5000${media.url}`;
+            const url = resolveMediaUrl(media.url);
             const response = await fetch(url);
             const blob = await response.blob();
             const blobUrl = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = blobUrl;
-            link.download = `HO_SOCIAL_${post.title.replace(/\s+/g, '_')}_${activeMedia + 1}.${media.url.split('.').pop()}`;
+            link.download = getDownloadName(media, post.title, activeMedia);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -134,17 +144,12 @@ const PostDetails = () => {
                     <h1 className="text-2xl md:text-5xl font-black text-black tracking-tighter uppercase italic leading-tight">{post.title}</h1>
                     
                     {/* Badges */}
-                    {(post.platforms?.length > 0 || post.regions?.length > 0 || post.eventDate) && (
+                    {(post.platforms?.length > 0 || post.eventDate) && (
                         <div className="flex flex-wrap gap-3 mt-6">
                             {post.platforms?.map(p => (
                                 <div key={p} className={`p-2 border-2 border-black shadow-[4px_4px_0px_#000] flex items-center justify-center ${p === 'Facebook' ? 'bg-[#1877F2] text-white' : 'bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white'}`} title={p}>
                                     {p === 'Facebook' ? <FacebookIcon /> : <InstagramIcon />}
                                 </div>
-                            ))}
-                            {post.regions?.map(r => (
-                                <span key={r} className="text-[9px] md:text-[11px] font-black uppercase px-3 py-1.5 bg-black text-white border-2 border-black shadow-[4px_4px_0px_#ff3e3e]">
-                                    {r}
-                                </span>
                             ))}
                             {post.eventDate && (
                                 <span className="text-[9px] md:text-[11px] font-black uppercase px-3 py-1.5 bg-primary-600 text-white border-2 border-black shadow-[4px_4px_0px_#000] flex items-center gap-2">
@@ -159,7 +164,7 @@ const PostDetails = () => {
                     {user?.role === 'admin' && post.eventDate && (
                         <button 
                             onClick={() => setShowInviteModal(true)}
-                            className="flex flex-col items-center justify-center gap-1 px-6 py-2 border-2 border-black font-black uppercase tracking-widest text-[10px] transition-all shadow-[4px_4px_0px_#ff3e3e] active:shadow-none active:translate-x-1 active:translate-y-1 bg-white text-black hover:bg-gray-50"
+                            className="flex flex-col items-center justify-center gap-1 px-6 py-2 border-2 border-black font-black uppercase tracking-widest text-[10px] transition-all shadow-[4px_4px_0px_#f9bf1e] active:shadow-none active:translate-x-1 active:translate-y-1 bg-white text-black hover:bg-gray-50"
                         >
                             <div className="flex items-center gap-2">
                                 <Calendar size={14} />
@@ -197,9 +202,9 @@ const PostDetails = () => {
                     {/* Main viewer */}
                     <div className="bg-black aspect-video flex items-center justify-center relative overflow-hidden">
                         {current?.type === 'image' ? (
-                            <img src={current.url?.startsWith('http') ? current.url : `http://localhost:5000${current.url}`} className="w-full h-full object-contain" alt={post.title} />
+                            <img src={resolveMediaUrl(current.url)} className="w-full h-full object-contain" alt={post.title} />
                         ) : (
-                            <video src={current.url?.startsWith('http') ? current.url : `http://localhost:5000${current.url}`} controls className="w-full h-full" />
+                            <video src={resolveMediaUrl(current.url)} controls className="w-full h-full" />
                         )}
 
                         {/* Prev / Next arrows */}
@@ -256,7 +261,7 @@ const PostDetails = () => {
                             >
                                 <button
                                     onClick={() => setIsMaximized(false)}
-                                    className="absolute top-6 right-6 p-4 bg-white text-black border-2 border-black shadow-[6px_6px_0px_#ff3e3e] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all z-[110]"
+                                    className="absolute top-6 right-6 p-4 bg-white text-black border-2 border-black shadow-[6px_6px_0px_#f9bf1e] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all z-[110]"
                                 >
                                     <X size={24} />
                                 </button>
@@ -264,13 +269,13 @@ const PostDetails = () => {
                                 <div className="w-full h-full flex items-center justify-center relative">
                                     {current?.type === 'image' ? (
                                         <img
-                                            src={current.url?.startsWith('http') ? current.url : `http://localhost:5000${current.url}`}
+                                            src={resolveMediaUrl(current.url)}
                                             className="max-w-full max-h-full object-contain"
                                             alt={post.title}
                                         />
                                     ) : (
                                         <video
-                                            src={current.url?.startsWith('http') ? current.url : `http://localhost:5000${current.url}`}
+                                            src={resolveMediaUrl(current.url)}
                                             controls
                                             autoPlay
                                             className="max-w-full max-h-full"
@@ -310,7 +315,7 @@ const PostDetails = () => {
                                     className={`relative w-24 h-16 shrink-0 border-r-2 border-black overflow-hidden transition-all ${i === activeMedia ? 'bg-primary-600' : 'opacity-40 hover:opacity-100'}`}
                                 >
                                     {item.type === 'image' ? (
-                                        <img src={item.url?.startsWith('http') ? item.url : `http://localhost:5000${item.url}`} className={`w-full h-full object-cover ${i === activeMedia ? 'opacity-50' : ''}`} alt="" />
+                                        <img src={resolveMediaUrl(item.url)} className={`w-full h-full object-cover ${i === activeMedia ? 'opacity-50' : ''}`} alt="" />
                                     ) : (
                                         <div className="w-full h-full bg-gray-900 flex items-center justify-center">
                                             <PlayCircle size={24} className="text-white" />
@@ -354,7 +359,7 @@ const PostDetails = () => {
                             initial={{ scale: 0.95, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            className="relative w-full max-w-lg bg-white border-4 border-black shadow-[16px_16px_0px_#ff3e3e] overflow-hidden flex flex-col"
+                            className="relative w-full max-w-lg bg-white border-4 border-black shadow-[16px_16px_0px_#f9bf1e] overflow-hidden flex flex-col"
                         >
                             <div className="bg-black p-4 flex items-center justify-between">
                                 <h2 className="text-white font-black uppercase tracking-widest text-sm">Send Calendar Invite</h2>

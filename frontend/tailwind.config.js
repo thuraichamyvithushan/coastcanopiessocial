@@ -8,16 +8,16 @@ export default {
         extend: {
             colors: {
                 primary: {
-                    50: '#fff1f2',
-                    100: '#ffe4e6',
-                    200: '#fecdd3',
-                    300: '#fda4af',
-                    400: '#fb7185',
-                    500: '#f43f5e',
-                    600: '#e11d48', // Refined Red
-                    700: '#be123c',
-                    800: '#9f1239',
-                    900: '#881337',
+                    50: '#fff9e7',
+                    100: '#fff0bf',
+                    200: '#ffe08a',
+                    300: '#ffd45b',
+                    400: '#fcc934',
+                    500: '#f9bf1e',
+                    600: '#f9bf1e', // Brand Gold
+                    700: '#d8a200',
+                    800: '#a87d00',
+                    900: '#725500',
                 },
                 dark: {
                     DEFAULT: '#000000',

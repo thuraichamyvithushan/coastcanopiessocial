@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import CommentSection from '../components/CommentSection';
+import { resolveMediaUrl } from '../utils/media';
 
 const FacebookIcon = ({ size = 12 }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
@@ -32,8 +33,6 @@ const filteredPosts = posts.filter(post => {
     // existing filters
     if (filter === 'Instagram' && !post.platforms?.includes('Instagram')) return false;
     if (filter === 'Facebook' && !post.platforms?.includes('Facebook')) return false;
-    if (filter === 'New Zealand' && !post.regions?.includes('New Zealand')) return false;
-    if (filter === 'Australia' && !post.regions?.includes('Australia')) return false;
 
     // date filtering
     if (!post.eventDate) return dateFilter === 'all';
@@ -103,8 +102,6 @@ const filteredPosts = posts.filter(post => {
         { key: 'all', label: 'All Content' },
         { key: 'Facebook', label: 'Facebook' },
         { key: 'Instagram', label: 'Instagram' },
-        { key: 'Australia', label: 'Australia' },
-        { key: 'New Zealand', label: 'New Zealand' },
     ];
 
     return (
@@ -314,13 +311,6 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                         </div>
                     ))}
                 </div>
-                <div className="flex gap-1">
-                    {post.regions?.map(r => (
-                        <span key={r} className="text-[7px] font-black uppercase px-1.5 py-0.5 bg-black text-white border border-black shadow-[2px_2px_0px_#ff3e3e]">
-                            {r}
-                        </span>
-                    ))}
-                </div>
             </div>
 
             {/* Post Header */}
@@ -336,7 +326,7 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                             </h4>
                         </div>
                         <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">
-                            {new Date(post.createdAt).toLocaleDateString()} • HO SOCIAL
+                            {new Date(post.createdAt).toLocaleDateString()} • Coast Canopies Social
                         </p>
                     </div>
                 </div>
@@ -380,7 +370,7 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                         {firstMedia.type === 'video' ? (
                             <div className="w-full flex items-center justify-center">
                                 <video 
-                                    src={firstMedia.url?.startsWith('http') ? firstMedia.url : `http://localhost:5000${firstMedia.url}`}
+                                    src={resolveMediaUrl(firstMedia.url)}
                                     className="w-full h-auto"
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
@@ -389,7 +379,7 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                             </div>
                         ) : (
                             <img
-                                src={firstMedia.url?.startsWith('http') ? firstMedia.url : `http://localhost:5000${firstMedia.url}`}
+                                src={resolveMediaUrl(firstMedia.url)}
                                 alt={post.title}
                                 className="w-full h-auto group-hover:scale-105 transition-transform duration-700 block"
                             />

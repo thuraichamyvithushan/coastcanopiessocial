@@ -20,7 +20,11 @@ const postSchema = new mongoose.Schema({
     // New: array of media files
     media: [{
         url: { type: String, required: true },
-        type: { type: String, enum: ['image', 'video'], required: true }
+        type: { type: String, enum: ['image', 'video'], required: true },
+        fileId: { type: String, default: '' },
+        filename: { type: String, default: '' },
+        contentType: { type: String, default: '' },
+        size: { type: Number, default: 0 }
     }],
     assignedUsers: [{
         type: mongoose.Schema.Types.ObjectId,
@@ -43,10 +47,6 @@ const postSchema = new mongoose.Schema({
     platforms: [{
         type: String,
         enum: ['Facebook', 'Instagram']
-    }],
-    regions: [{
-        type: String,
-        enum: ['Australia', 'New Zealand']
     }],
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,

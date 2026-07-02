@@ -1,33 +1,28 @@
 # Dependencies
 node_modules/
 
-# Local Environment
+# Local environment
 .env
-
-# Uploads
-backend/uploads/
-uploads/
-
-# OS Specific
-.DS_Store
-Thumbs.db
+.env.*
+!.env.example
 
 # Logs
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# Firebase Secrets
-config/serviceAccountKey.json
+# Runtime / uploads
+uploads/
+tmp/
+coverage/
 
-# Admin Scripts
-approve_admin.js
-approve_all.js
-check_users.js
-final_clean.js
-generateKey.js
-test_firebase.js
-final_check.js
+# OS / editor
+.DS_Store
+Thumbs.db
 
 # Vercel
-.vercel
+.vercel/
+.vercel/output/

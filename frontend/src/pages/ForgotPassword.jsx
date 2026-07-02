@@ -51,14 +51,14 @@ const ForgotPassword = () => {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="w-full h-14 px-5 border-2 border-black focus:bg-gray-50 transition-all font-bold text-sm outline-none"
-                                placeholder="example@huntsmanoptics.com"
+                                placeholder="example@coastcanopies.com"
                             />
                         </div>
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-black text-white h-16 flex items-center justify-center gap-3 font-black uppercase tracking-widest text-sm hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_#ff3e3e] active:translate-x-0 active:translate-y-0 active:shadow-none transition-all disabled:opacity-50"
+                            className="w-full bg-black text-white h-16 flex items-center justify-center gap-3 font-black uppercase tracking-widest text-sm hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_#f9bf1e] active:translate-x-0 active:translate-y-0 active:shadow-none transition-all disabled:opacity-50"
                         >
                             {loading ? <Loader2 className="animate-spin" /> : (
                                 <>
