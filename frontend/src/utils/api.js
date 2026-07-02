@@ -44,13 +44,16 @@
 import axios from 'axios';
 import CONFIG from '../config';
 
+const AUTH_STORAGE_KEY = 'userInfo';
+const AUTH_EXEMPT_PATHS = ['/auth/login', '/auth/register', '/auth/forgotpassword', '/auth/resetpassword'];
+
 const api = axios.create({
     baseURL: CONFIG.API_BASE_URL,
 });
 
 api.interceptors.request.use(
     (config) => {
-        const userInfo = localStorage.getItem('userInfo');
+        const userInfo = localStorage.getItem(AUTH_STORAGE_KEY);
         if (userInfo) {
             try {
                 const parsed = JSON.parse(userInfo);
@@ -70,9 +73,19 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            console.warn(`Unauthorized: ${error.config?.url}`);
-            // Do NOT redirect to login
-            localStorage.removeItem('userInfo');
+            const requestUrl = error.config?.url || '';
+            console.warn(`Unauthorized: ${requestUrl}`);
+
+            const isAuthFlowRequest = AUTH_EXEMPT_PATHS.some((path) => requestUrl.includes(path));
+
+            if (!isAuthFlowRequest) {
+                localStorage.removeItem(AUTH_STORAGE_KEY);
+                window.dispatchEvent(new Event('auth:unauthorized'));
+
+                if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+                    window.location.href = '/login';
+                }
+            }
         }
         return Promise.reject(error);
     }

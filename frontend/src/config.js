@@ -1,6 +1,6 @@
 const apiBaseUrl = import.meta.env.PROD
     ? (import.meta.env.VITE_API_BASE_URL || '/api')
-    : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api');
+    : (import.meta.env.VITE_API_BASE_URL || 'https://coastcanopiessocial-l6gf.vercel.app/api');
 
 const apiOrigin = apiBaseUrl === '/api'
     ? (typeof window !== 'undefined' ? window.location.origin : '')
