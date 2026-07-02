@@ -1,11 +1,13 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const connectDB = require('../config/db');
 
 const protect = async (req, res, next) => {
     let token;
 
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         try {
+            await connectDB();
             token = req.headers.authorization.split(' ')[1];
             if (!process.env.JWT_SECRET) {
                 console.error('CRITICAL: JWT_SECRET is missing from environment variables!');
@@ -21,6 +23,17 @@ const protect = async (req, res, next) => {
             next();
         } catch (error) {
             console.error('AUTH TOKEN FAILED:', error.message);
+            const isConnectionIssue =
+                error.message === 'MONGO_URI is missing from environment variables' ||
+                error.message.includes('buffering timed out') ||
+                error.message.includes('Database connection is unavailable') ||
+                error.message.includes('ENOTFOUND') ||
+                error.message.includes('Server selection timed out');
+
+            if (isConnectionIssue) {
+                return res.status(503).json({ message: 'Database connection is unavailable' });
+            }
+
             res.status(401).json({ message: 'Not authorized, token failed' });
         }
     }
