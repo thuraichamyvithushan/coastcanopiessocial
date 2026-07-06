@@ -3,10 +3,12 @@ import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, PlusSquare, FileText, LogOut, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/cclogo.png';
+import { isAdminUser, isSuperAdminUser } from '../../utils/roles';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
     const { user, logout } = useAuth();
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = isAdminUser(user);
+    const isSuperAdmin = isSuperAdminUser(user);
 
     const navItems = isAdmin ? [
         { name: 'Overview', path: '/admin-dashboard', icon: LayoutDashboard },
@@ -68,7 +70,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                             </NavLink>
                         ))}
 
-                        {isAdmin && (
+                        {isSuperAdmin && (
                             <a
                                 href="https://huntsmansocial.vercel.app/admin-dashboard"
                                 target="_blank"

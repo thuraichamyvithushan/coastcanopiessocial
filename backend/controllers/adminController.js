@@ -1,5 +1,8 @@
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
+const { isSuperAdminRole } = require('../utils/roles');
+
+const canManageSuperAdmin = (actor) => isSuperAdminRole(actor?.role);
 
 // @desc    Get all users
 // @route   GET /api/admin/users
@@ -22,6 +25,10 @@ exports.updateUserStatus = async (req, res) => {
         const user = await User.findById(req.params.id);
 
         if (user) {
+            if (isSuperAdminRole(user.role) && !canManageSuperAdmin(req.user)) {
+                return res.status(403).json({ message: 'Only a super admin can manage super admin accounts' });
+            }
+
             user.status = status;
             await user.save();
 
@@ -72,6 +79,20 @@ exports.updateUserRole = async (req, res) => {
         const user = await User.findById(req.params.id);
 
         if (user) {
+            if (role === 'super-admin') {
+                if (!canManageSuperAdmin(req.user)) {
+                    return res.status(403).json({ message: 'Only a super admin can promote an admin to super admin' });
+                }
+
+                if (user.role !== 'admin') {
+                    return res.status(400).json({ message: 'Only admin accounts can be promoted to super admin' });
+                }
+            }
+
+            if (isSuperAdminRole(user.role) && !canManageSuperAdmin(req.user)) {
+                return res.status(403).json({ message: 'Only a super admin can change a super admin account' });
+            }
+
             user.role = role || 'admin';
             await user.save();
             res.json({ message: `User role updated to ${user.role}` });
@@ -91,6 +112,14 @@ exports.deleteUser = async (req, res) => {
         const user = await User.findById(req.params.id);
 
         if (user) {
+            if (isSuperAdminRole(user.role) && !canManageSuperAdmin(req.user)) {
+                return res.status(403).json({ message: 'Admin accounts cannot remove super admin accounts' });
+            }
+
+            if (req.user && user._id.toString() === req.user._id.toString()) {
+                return res.status(400).json({ message: 'You cannot remove your own account' });
+            }
+
             await user.deleteOne();
             res.json({ message: 'User removed from system' });
         } else {

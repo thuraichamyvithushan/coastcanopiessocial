@@ -3,6 +3,7 @@ import api from '../utils/api';
 import { Send, MessageSquare, Reply, Edit2, Trash2, X, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { isAdminUser } from '../utils/roles';
 
 const CommentSection = ({ postId, user }) => {
     const [comments, setComments] = useState([]);
@@ -80,7 +81,7 @@ const CommentSection = ({ postId, user }) => {
                         Discussion ({comments.length})
                     </h4>
                 </div>
-                {user?.role === 'admin' && comments.length > 0 && (
+                {isAdminUser(user) && comments.length > 0 && (
                     <button 
                         onClick={async () => {
                             if (window.confirm('WARNING: This will delete ALL comments on this post. Continue?')) {
@@ -159,7 +160,7 @@ const CommentItem = ({ comment, replies, onReply, onUpdate, onDelete, currentUse
     const commentUserId = (comment.userId?._id || comment.userId)?.toString();
     const isOwner = currentUserId && commentUserId && currentUserId === commentUserId;
     
-    const isAdmin = currentUser?.role === 'admin';
+    const isAdmin = isAdminUser(currentUser);
 
     const handleSave = () => {
         if (!editText.trim()) return;

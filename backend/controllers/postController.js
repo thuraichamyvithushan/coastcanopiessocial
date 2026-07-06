@@ -5,6 +5,7 @@ const Notification = require('../models/Notification');
 const sendEmail = require('../utils/sendEmail');
 const { uploadBufferToGridFS } = require('../utils/gridfs');
 const ics = require('ics');
+const { ADMIN_ROLES, isAdminRole } = require('../utils/roles');
 
 // @desc    Create new post (supports multiple media files)
 // @route   POST /api/posts
@@ -209,7 +210,7 @@ exports.getUserArchivedPosts = async (req, res) => {
 exports.getAdminPosts = async (req, res) => {
     try {
         // Safety check - if no user or not admin, return empty or limited data
-        if (!req.user || req.user.role !== 'admin') {
+        if (!req.user || !isAdminRole(req.user.role)) {
             return res.status(403).json({ 
                 message: 'Admin access required' 
             });
@@ -338,7 +339,7 @@ exports.getPostById = async (req, res) => {
 
         // If user is logged in, do extra actions (mark as viewed, etc.)
         if (req.user) {
-            const isAdmin = req.user.role === 'admin';
+            const isAdmin = isAdminRole(req.user.role);
 
             if (isAdmin) {
                 // Mark all comments as read for admin
@@ -383,7 +384,7 @@ exports.archivePost = async (req, res) => {
         if (!post || post.isDeleted) return res.status(404).json({ message: 'Post not found' });
 
         const userId = req.user._id.toString();
-        const isAdmin = req.user.role === 'admin';
+        const isAdmin = isAdminRole(req.user.role);
         const isApproved = req.user.status === 'approved';
 
         if (!isAdmin && !isApproved) {
@@ -411,7 +412,7 @@ exports.unarchivePost = async (req, res) => {
         if (!post || post.isDeleted) return res.status(404).json({ message: 'Post not found' });
 
         const userId = req.user._id.toString();
-        const isAdmin = req.user.role === 'admin';
+        const isAdmin = isAdminRole(req.user.role);
         const isApproved = req.user.status === 'approved';
 
         if (!isAdmin && !isApproved) {
@@ -630,7 +631,7 @@ exports.toggleLike = async (req, res) => {
 
             // 2. Notify other admins (if the liker is a user)
             if (req.user.role === 'user') {
-                const admins = await User.find({ role: 'admin', _id: { $ne: post.createdBy } });
+                const admins = await User.find({ role: { $in: ADMIN_ROLES }, _id: { $ne: post.createdBy } });
                 for (const admin of admins) {
                     await Notification.create({
                         type: 'like',

@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import CommentSection from '../components/CommentSection';
 import { resolveMediaUrl } from '../utils/media';
+import { isAdminUser } from '../utils/roles';
 
 const FacebookIcon = ({ size = 16 }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
@@ -45,7 +46,7 @@ const PostDetails = () => {
             setPost(postRes.data);
             
             // If admin, fetch users for the invite modal
-            if (user?.role === 'admin') {
+            if (isAdminUser(user)) {
                 const usersRes = await api.get('/admin/users');
                 const approvedUsers = usersRes.data.filter(u => u.status === 'approved' && u.role === 'user');
                 setUsersList(approvedUsers);
@@ -137,7 +138,7 @@ const PostDetails = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-4 border-black pb-8">
                 <div>
-                    <Link to={user?.role === 'admin' ? '/admin-dashboard' : '/dashboard'} className="inline-flex items-center gap-2 text-black hover:text-primary-600 transition-colors font-black uppercase tracking-widest text-[10px] mb-4 group">
+                    <Link to={isAdminUser(user) ? '/admin-dashboard' : '/dashboard'} className="inline-flex items-center gap-2 text-black hover:text-primary-600 transition-colors font-black uppercase tracking-widest text-[10px] mb-4 group">
                         <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
                         <span>Return to Feed</span>
                     </Link>
@@ -161,7 +162,7 @@ const PostDetails = () => {
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-4 md:justify-end">
-                    {user?.role === 'admin' && post.eventDate && (
+                    {isAdminUser(user) && post.eventDate && (
                         <button 
                             onClick={() => setShowInviteModal(true)}
                             className="flex flex-col items-center justify-center gap-1 px-6 py-2 border-2 border-black font-black uppercase tracking-widest text-[10px] transition-all shadow-[4px_4px_0px_#f9bf1e] active:shadow-none active:translate-x-1 active:translate-y-1 bg-white text-black hover:bg-gray-50"

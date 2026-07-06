@@ -2,6 +2,7 @@ const Comment = require('../models/Comment');
 const Notification = require('../models/Notification');
 const Post = require('../models/Post');
 const User = require('../models/User');
+const { ADMIN_ROLES, isAdminRole } = require('../utils/roles');
 
 // @desc    Add comment to post
 // @route   POST /api/comments
@@ -41,7 +42,7 @@ exports.addComment = async (req, res) => {
             userId: userId,
             comment,
             parentId: parentId || null,
-            readByAdmin: userRole === 'admin'
+            readByAdmin: isAdminRole(userRole)
         });
 
         // --- NOTIFICATIONS ---
@@ -59,7 +60,7 @@ exports.addComment = async (req, res) => {
 
             // 2. Notify all admins (if commenter is a user)
             if (userRole === 'user') {
-                const admins = await User.find({ role: 'admin', _id: { $ne: post.createdBy } });
+                const admins = await User.find({ role: { $in: ADMIN_ROLES }, _id: { $ne: post.createdBy } });
                 for (const admin of admins) {
                     await Notification.create({
                         type: 'comment',
@@ -393,7 +394,7 @@ exports.deleteComment = async (req, res) => {
         }
 
         // Check ownership (admins can delete any comment)
-        if (comment.userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+        if (comment.userId.toString() !== req.user._id.toString() && !isAdminRole(req.user.role)) {
             return res.status(401).json({ message: 'Not authorized' });
         }
 
@@ -412,7 +413,7 @@ exports.deleteComment = async (req, res) => {
 // @access  Private/Admin
 exports.deleteAllComments = async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
+        if (!isAdminRole(req.user.role)) {
             return res.status(401).json({ message: 'Not authorized' });
         }
 

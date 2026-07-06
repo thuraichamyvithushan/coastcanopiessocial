@@ -4,6 +4,7 @@ const Notification = require('../models/Notification');
 const crypto = require('crypto');
 const sendEmail = require('../utils/sendEmail');
 const connectDB = require('../config/db');
+const { isSuperAdminEmail, syncSuperAdminUser } = require('../utils/roles');
 
 const normalizeEmail = (email) => email?.trim().toLowerCase();
 
@@ -92,7 +93,9 @@ exports.registerUser = async (req, res) => {
         const user = new User({
             name,
             email,
-            password
+            password,
+            role: isSuperAdminEmail(email) ? 'super-admin' : 'user',
+            status: isSuperAdminEmail(email) ? 'approved' : 'pending'
         });
 
         await user.save();
@@ -178,6 +181,8 @@ exports.loginUser = async (req, res) => {
         const user = await User.findOne({ email }).select('+password');
 
         if (user && (await user.comparePassword(password, user.password))) {
+            await syncSuperAdminUser(user);
+
             if (user.status !== 'approved') {
                 // Notifiy admin of login attempt from pending user
                 await createNotificationSafely({

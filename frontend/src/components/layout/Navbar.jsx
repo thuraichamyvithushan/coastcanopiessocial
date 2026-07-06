@@ -150,6 +150,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import { isAdminUser } from '../../utils/roles';
 
 const Navbar = ({ toggleSidebar }) => {
     const { user } = useAuth();
@@ -166,7 +167,7 @@ const Navbar = ({ toggleSidebar }) => {
 
         try {
             setLoading(true);
-            const endpoint = user.role === 'admin' 
+            const endpoint = isAdminUser(user) 
                 ? '/notifications/admin' 
                 : '/comments/user/notifications';
 
@@ -282,7 +283,7 @@ const Navbar = ({ toggleSidebar }) => {
                                             notifications.latestComments.map((note) => (
                                                 <Link
                                                     key={note._id}
-                                                    to={note.postId ? `/post/${note.postId}` : (user.role === 'admin' ? "/admin-dashboard" : "/dashboard")}
+                                                    to={note.postId ? `/post/${note.postId}` : (isAdminUser(user) ? "/admin-dashboard" : "/dashboard")}
                                                     onClick={() => {
                                                         setShowDropdown(false);
                                                         handleMarkAsRead(note._id, note.type);
@@ -313,7 +314,7 @@ const Navbar = ({ toggleSidebar }) => {
                                     </div>
 
                                     <Link
-                                        to={user.role === 'admin' ? "/admin-dashboard" : "/dashboard"}
+                                        to={isAdminUser(user) ? "/admin-dashboard" : "/dashboard"}
                                         onClick={() => setShowDropdown(false)}
                                         className="block py-4 text-center text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400 hover:text-black hover:bg-gray-50 transition-all border-t border-gray-100"
                                     >

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const connectDB = require('../config/db');
+const { isAdminRole } = require('../utils/roles');
 
 const protect = async (req, res, next) => {
     let token;
@@ -44,7 +45,7 @@ const protect = async (req, res, next) => {
 };
 
 const admin = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
+    if (req.user && isAdminRole(req.user.role)) {
         next();
     } else {
         res.status(403).json({ message: 'Not authorized as an admin' });

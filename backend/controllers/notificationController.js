@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { isAdminRole } = require('../utils/roles');
 
 // @desc    Get admin's unified notifications (Comments + System Alerts)
 // @route   GET /api/notifications/admin
@@ -102,7 +103,7 @@ exports.markAsRead = async (req, res) => {
         const userId = req.user._id;
 
         if (type === 'reply') {
-            if (req.user.role === 'admin') {
+            if (isAdminRole(req.user.role)) {
                 await Comment.updateMany({ postId: id, readByAdmin: false }, { readByAdmin: true });
             } else {
                 await Comment.updateMany(
@@ -134,7 +135,7 @@ exports.markAllAsRead = async (req, res) => {
         const Notification = mongoose.model('Notification');
         const Post = mongoose.model('Post');
 
-        if (req.user.role === 'admin') {
+        if (isAdminRole(req.user.role)) {
             // 1. Mark all unread comments as read by admin
             await Comment.updateMany({ readByAdmin: false }, { readByAdmin: true });
             

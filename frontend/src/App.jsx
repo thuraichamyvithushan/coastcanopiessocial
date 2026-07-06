@@ -16,6 +16,7 @@ import UserDashboard from './pages/UserDashboard';
 import PostDetails from './pages/PostDetails';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import { isAdminUser } from './utils/roles';
 
 const MainLayout = () => {
     const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
@@ -42,7 +43,7 @@ const MainLayout = () => {
                             <Route path="/admin/posts" element={<UserDashboard />} />
                         </Route>
 
-                        <Route path="/" element={<Navigate to={user?.role === 'admin' ? '/admin-dashboard' : '/dashboard'} replace />} />
+                        <Route path="/" element={<Navigate to={isAdminUser(user) ? '/admin-dashboard' : '/dashboard'} replace />} />
                     </Routes>
                 </main>
             </div>

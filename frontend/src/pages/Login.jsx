@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import logo from '../assets/cclogo.png';
 import authBg from '../assets/auth.png';
+import { isAdminRole } from '../utils/roles';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -32,7 +33,7 @@ const Login = () => {
             toast.success('Welcome back!');
             
             setTimeout(() => {
-                if (data.role === 'admin') navigate('/admin-dashboard', { replace: true });
+                if (isAdminRole(data.role)) navigate('/admin-dashboard', { replace: true });
                 else navigate('/dashboard', { replace: true });
             }, 200);
         } catch (error) {
