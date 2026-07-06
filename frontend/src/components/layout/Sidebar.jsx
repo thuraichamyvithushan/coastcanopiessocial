@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, PlusSquare, FileText, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, PlusSquare, FileText, LogOut, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/cclogo.png';
 
@@ -67,6 +67,21 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                 </span>
                             </NavLink>
                         ))}
+
+                        {isAdmin && (
+                            <a
+                                href="https://huntsmansocial.vercel.app/admin-dashboard"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="sidebar-link"
+                                title={!isOpen ? 'Manage HuntsmanSocial' : ''}
+                            >
+                                <ExternalLink size={20} className="shrink-0" />
+                                <span className={`font-bold text-xs uppercase tracking-widest transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'md:opacity-0 pointer-events-none'}`}>
+                                    Manage HuntsmanSocial
+                                </span>
+                            </a>
+                        )}
                     </nav>
 
                     {/* User Footer */}
