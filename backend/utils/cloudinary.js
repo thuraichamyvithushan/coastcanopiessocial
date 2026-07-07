@@ -27,14 +27,15 @@ const uploadBufferToCloudinary = ({ buffer, filename, contentType }) => new Prom
 
     const resourceType = contentType?.startsWith('video') ? 'video' : 'image';
     const folder = process.env.CLOUDINARY_FOLDER || 'coast-canopies-social';
-    const publicIdBase = filename ? filename.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '-') : undefined;
 
     const uploadStream = cloudinary.uploader.upload_stream(
         {
             folder,
             resource_type: resourceType,
-            public_id: publicIdBase,
-            overwrite: false
+            use_filename: true,
+            unique_filename: true,
+            overwrite: false,
+            filename_override: filename
         },
         (error, result) => {
             if (error) {
