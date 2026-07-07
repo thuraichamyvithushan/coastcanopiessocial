@@ -22,7 +22,7 @@ const UserDashboard = () => {
     const [filter, setFilter] = useState('all');
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 5;
+    const ITEMS_PER_PAGE = 6;
 
     const [dateFilter, setDateFilter] = useState('all'); 
 const [selectedDate, setSelectedDate] = useState('');
