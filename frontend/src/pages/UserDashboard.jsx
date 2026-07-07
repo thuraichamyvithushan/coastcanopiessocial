@@ -54,6 +54,18 @@ const filteredPosts = posts.filter(post => {
     return true;
 });
 
+const sortedPosts = [...filteredPosts].sort((a, b) => {
+    if (Boolean(a.isNew) !== Boolean(b.isNew)) {
+        return a.isNew ? -1 : 1;
+    }
+
+    const dateA = a.eventDate ? new Date(a.eventDate) : new Date(a.createdAt);
+    const dateB = b.eventDate ? new Date(b.eventDate) : new Date(b.createdAt);
+    return dateB - dateA;
+});
+
+const displayedPosts = sortedPosts.slice(0, currentPage * ITEMS_PER_PAGE);
+
     // const fetchPosts = useCallback(async () => {
     //     try {
     //         const res = await api.get('/posts/user');
@@ -183,64 +195,19 @@ const filteredPosts = posts.filter(post => {
                             </div>
                         ) : (
                             <>
-                                {(() => {
-                                    // Sort posts by eventDate descending (newest first)
-                                    // Fallback to createdAt if eventDate is missing
-                                    const sorted = [...filteredPosts].sort((a, b) => {
-                                        const dateA = a.eventDate ? new Date(a.eventDate) : new Date(a.createdAt);
-                                        const dateB = b.eventDate ? new Date(b.eventDate) : new Date(b.createdAt);
-                                        return dateB - dateA;
-                                    });
-
-                                    const displayedPosts = sorted.slice(0, currentPage * ITEMS_PER_PAGE);
-                                    
-                                    // Group by date
-                                    const grouped = displayedPosts.reduce((acc, post) => {
-                                        const dateStr = post.eventDate 
-                                            ? new Date(post.eventDate).toLocaleDateString('en-GB', { 
-                                                weekday: 'long', 
-                                                day: 'numeric', 
-                                                month: 'long',
-                                                year: 'numeric'
-                                            })
-                                            : 'UNSCHEDULED';
-                                        
-                                        if (acc.length > 0 && acc[acc.length - 1].date === dateStr) {
-                                            acc[acc.length - 1].posts.push(post);
-                                        } else {
-                                            acc.push({ date: dateStr, posts: [post] });
-                                        }
-                                        return acc;
-                                    }, []);
-
-                                    return grouped.map((group, gIndex) => (
-                                        <div key={group.date} className="space-y-6">
-                                            <div className="flex items-center gap-4 py-2 sticky top-[-1px] z-30 bg-white/95 backdrop-blur-sm border-b-2 border-black -mx-4 px-4 md:-mx-10 md:px-10">
-                                                <div className="bg-black text-white px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] italic shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
-                                                    {group.date}
-                                                </div>
-                                                <div className="flex-1 h-[1px] bg-black/5" />
-                                                <div className="text-[8px] font-black text-black/30 uppercase tracking-widest">
-                                                    {group.posts.length} {group.posts.length === 1 ? 'Design' : 'Designs'}
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 items-start">
-                                                {group.posts.map((post, pIndex) => (
-                                                    <PostItem
-                                                        key={post._id}
-                                                        post={post}
-                                                        index={pIndex}
-                                                        currentUser={currentUser}
-                                                        onLike={handleLike}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ));
-                                })()}
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 items-start">
+                                    {displayedPosts.map((post, index) => (
+                                        <PostItem
+                                            key={post._id}
+                                            post={post}
+                                            index={index}
+                                            currentUser={currentUser}
+                                            onLike={handleLike}
+                                        />
+                                    ))}
+                                </div>
                                 
-                                {filteredPosts.length > currentPage * ITEMS_PER_PAGE && (
+                                {sortedPosts.length > currentPage * ITEMS_PER_PAGE && (
                                     <button
                                         onClick={() => setCurrentPage(prev => prev + 1)}
                                         className="w-full py-6 border-2 border-black bg-white font-black uppercase tracking-[0.3em] text-[10px] hover:bg-black hover:text-white transition-all shadow-[8px_8px_0px_#000] active:shadow-none active:translate-x-1 active:translate-y-1"
@@ -339,15 +306,15 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                     </h3>
                     <p className="text-xs text-gray-600 leading-relaxed font-medium whitespace-pre-wrap">
                         {isExpanded ? post.description : (post.description.length > 150 ? post.description.substring(0, 150) + '...' : post.description)}
-                        {post.description.length > 150 && !isExpanded && (
+                        {post.description.length > 150 && (
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    setIsExpanded(true);
+                                    setIsExpanded(prev => !prev);
                                 }}
                                 className="text-primary-600 font-black ml-1 hover:underline uppercase text-[10px]"
                             >
-                                Read More
+                                {isExpanded ? 'Read Less' : 'Read More'}
                             </button>
                         )}
                     </p>
