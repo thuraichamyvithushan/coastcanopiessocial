@@ -21,6 +21,8 @@ const postSchema = new mongoose.Schema({
     media: [{
         url: { type: String, required: true },
         type: { type: String, enum: ['image', 'video'], required: true },
+        provider: { type: String, default: 'gridfs' },
+        publicId: { type: String, default: '' },
         fileId: { type: String, default: '' },
         filename: { type: String, default: '' },
         contentType: { type: String, default: '' },

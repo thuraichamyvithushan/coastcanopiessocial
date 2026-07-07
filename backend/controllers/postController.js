@@ -4,6 +4,7 @@ const Comment = require('../models/Comment');
 const Notification = require('../models/Notification');
 const sendEmail = require('../utils/sendEmail');
 const { uploadBufferToGridFS } = require('../utils/gridfs');
+const { isCloudinaryConfigured, uploadBufferToCloudinary } = require('../utils/cloudinary');
 const ics = require('ics');
 const { ADMIN_ROLES, isAdminRole } = require('../utils/roles');
 
@@ -14,7 +15,27 @@ exports.createPost = async (req, res) => {
     const { title, description, platforms, eventDate  } = req.body;
 
     try {
+        const useCloudinary = isCloudinaryConfigured();
         const media = await Promise.all((req.files || []).map(async (file) => {
+            if (useCloudinary) {
+                const uploadedFile = await uploadBufferToCloudinary({
+                    buffer: file.buffer,
+                    filename: file.originalname,
+                    contentType: file.mimetype
+                });
+
+                return {
+                    url: uploadedFile.url,
+                    type: file.mimetype.startsWith('video') ? 'video' : 'image',
+                    provider: uploadedFile.provider,
+                    publicId: uploadedFile.publicId,
+                    fileId: '',
+                    filename: file.originalname,
+                    contentType: file.mimetype,
+                    size: file.size
+                };
+            }
+
             const uploadedFile = await uploadBufferToGridFS({
                 buffer: file.buffer,
                 filename: file.originalname,
@@ -24,6 +45,8 @@ exports.createPost = async (req, res) => {
             return {
                 url: `/api/media/${uploadedFile.fileId}`,
                 type: file.mimetype.startsWith('video') ? 'video' : 'image',
+                provider: 'gridfs',
+                publicId: '',
                 fileId: uploadedFile.fileId,
                 filename: file.originalname,
                 contentType: file.mimetype,
@@ -87,6 +110,7 @@ exports.createPost = async (req, res) => {
 
         res.status(201).json(post);
     } catch (error) {
+        console.error('Create post upload error:', error);
         res.status(500).json({ message: error.message });
     }
 };
