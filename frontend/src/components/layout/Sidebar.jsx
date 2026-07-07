@@ -3,12 +3,14 @@ import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, PlusSquare, FileText, LogOut, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/cclogo.png';
-import { isAdminUser, isSuperAdminUser } from '../../utils/roles';
+import { isAdminUser, normalizeRole } from '../../utils/roles';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
     const { user, logout } = useAuth();
     const isAdmin = isAdminUser(user);
-    const isSuperAdmin = isSuperAdminUser(user);
+    const huntsmanOpticsDashboardUrl =
+        import.meta.env.VITE_HUNTSMAN_OPTICS_SOCIAL_URL ||
+        'https://huntsmansocial.vercel.app/dashboard';
 
     const navItems = isAdmin ? [
         { name: 'Overview', path: '/admin-dashboard', icon: LayoutDashboard },
@@ -70,20 +72,18 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                             </NavLink>
                         ))}
 
-                        {isSuperAdmin && (
-                            <a
-                                href="https://huntsmansocial.vercel.app/admin-dashboard"
-                                target="_blank"
-                                rel="noreferrer"
-                                className="sidebar-link"
-                                title={!isOpen ? 'Manage HuntsmanSocial' : ''}
-                            >
-                                <ExternalLink size={20} className="shrink-0" />
-                                <span className={`font-bold text-xs uppercase tracking-widest transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'md:opacity-0 pointer-events-none'}`}>
-                                    Manage HuntsmanSocial
-                                </span>
-                            </a>
-                        )}
+                        <a
+                            href={huntsmanOpticsDashboardUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="sidebar-link"
+                            title={!isOpen ? 'Manage Huntsman Optics Social' : ''}
+                        >
+                            <ExternalLink size={20} className="shrink-0" />
+                            <span className={`font-bold text-xs uppercase tracking-widest transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'md:opacity-0 pointer-events-none'}`}>
+                                Manage Huntsman Optics Social
+                            </span>
+                        </a>
                     </nav>
 
                     {/* User Footer */}
@@ -94,7 +94,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                             </div>
                             <div className={`flex-1 min-w-0 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'md:opacity-0 pointer-events-none'}`}>
                                 <p className="text-[10px] md:text-xs font-bold truncate text-white uppercase tracking-wider">{user?.name}</p>
-                                <p className="text-[8px] md:text-[10px] text-white/40 uppercase tracking-tighter">{user?.role}</p>
+                                <p className="text-[8px] md:text-[10px] text-white/40 uppercase tracking-tighter">{normalizeRole(user?.role)}</p>
                             </div>
                             <button
                                 onClick={logout}

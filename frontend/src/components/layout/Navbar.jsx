@@ -150,7 +150,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { isAdminUser } from '../../utils/roles';
+import { isAdminUser, normalizeRole } from '../../utils/roles';
 
 const Navbar = ({ toggleSidebar }) => {
     const { user } = useAuth();
@@ -329,7 +329,7 @@ const Navbar = ({ toggleSidebar }) => {
                 {/* Role Badge */}
                 {user && (
                     <div className="h-8 md:h-10 px-4 md:px-6 bg-black text-white flex items-center justify-center font-black text-[10px] md:text-xs tracking-widest uppercase">
-                        {user.role}
+                        {normalizeRole(user.role)}
                     </div>
                 )}
             </div>

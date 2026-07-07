@@ -4,7 +4,7 @@ const Notification = require('../models/Notification');
 const crypto = require('crypto');
 const sendEmail = require('../utils/sendEmail');
 const connectDB = require('../config/db');
-const { isSuperAdminEmail, syncSuperAdminUser } = require('../utils/roles');
+const { normalizeRole, normalizeUserRole } = require('../utils/roles');
 
 const normalizeEmail = (email) => email?.trim().toLowerCase();
 
@@ -12,7 +12,7 @@ const buildAuthResponse = (user) => ({
     _id: user._id,
     name: user.name,
     email: user.email,
-    role: user.role,
+    role: normalizeRole(user.role),
     status: user.status,
     token: generateToken(user._id)
 });
@@ -94,8 +94,8 @@ exports.registerUser = async (req, res) => {
             name,
             email,
             password,
-            role: isSuperAdminEmail(email) ? 'super-admin' : 'user',
-            status: isSuperAdminEmail(email) ? 'approved' : 'pending'
+            role: 'user',
+            status: 'pending'
         });
 
         await user.save();
@@ -105,7 +105,7 @@ exports.registerUser = async (req, res) => {
                 _id: user._id,
                 name: user.name,
                 email: user.email,
-                role: user.role,
+                role: normalizeRole(user.role),
                 status: user.status
             });
 
@@ -181,7 +181,7 @@ exports.loginUser = async (req, res) => {
         const user = await User.findOne({ email }).select('+password');
 
         if (user && (await user.comparePassword(password, user.password))) {
-            await syncSuperAdminUser(user);
+            await normalizeUserRole(user);
 
             if (user.status !== 'approved') {
                 // Notifiy admin of login attempt from pending user

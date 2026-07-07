@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Clock, Shield, Search, Filter, UserCheck, UserX } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
-import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { isAdminRole, isSuperAdminRole, isSuperAdminUser } from '../utils/roles';
+import { isAdminRole, normalizeRole } from '../utils/roles';
 
 const UserManagement = () => {
     const { user: currentUser } = useAuth();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
-    const [filter, setFilter] = useState('all');
 
     const fetchUsers = async () => {
         try {
@@ -39,9 +36,6 @@ const UserManagement = () => {
             } else if (action === 'promote') {
                 await api.put(`/admin/users/${userId}/role`, { role: 'admin' });
                 toast.success('User promoted to admin');
-            } else if (action === 'promote-super-admin') {
-                await api.put(`/admin/users/${userId}/role`, { role: 'super-admin' });
-                toast.success('Admin promoted to super admin');
             } else if (action === 'delete') {
                 if (window.confirm('Are you sure you want to permanently remove this member?')) {
                     await api.delete(`/admin/users/${userId}`);
@@ -53,13 +47,6 @@ const UserManagement = () => {
             toast.error(error.response?.data?.message || 'Failed to perform action');
         }
     };
-
-    const filteredUsers = users.filter(user => {
-        const matchesSearch = user.name.toLowerCase().includes(search.toLowerCase()) ||
-            user.email.toLowerCase().includes(search.toLowerCase());
-        const matchesFilter = filter === 'all' || user.status === filter;
-        return matchesSearch && matchesFilter;
-    });
 
     return (
         <div className="space-y-8 md:space-y-12 max-w-7xl mx-auto px-4 md:px-0 pb-20">
@@ -105,10 +92,9 @@ const UserManagement = () => {
                                     <td colSpan="4" className="px-8 py-20 text-center text-gray-300 font-black uppercase tracking-widest">No Members Found</td>
                                 </tr>
                             ) : users.map((user) => {
-                                const isTargetSuperAdmin = isSuperAdminRole(user.role);
+                                const normalizedRole = normalizeRole(user.role);
                                 const canPromoteToAdmin = !isAdminRole(user.role) && user.status === 'approved';
-                                const canPromoteToSuperAdmin = isSuperAdminUser(currentUser) && user.role === 'admin';
-                                const canDelete = !isTargetSuperAdmin || isSuperAdminUser(currentUser);
+                                const canDelete = currentUser?._id !== user._id;
 
                                 return (
                                 <tr key={user._id} className="hover:bg-gray-50 transition-colors group">
@@ -120,14 +106,14 @@ const UserManagement = () => {
                                             <div className="min-w-0">
                                                 <div className="font-black text-sm md:text-lg uppercase tracking-tighter italic truncate">{user.name}</div>
                                                 <div className="hidden md:block text-xs text-gray-400 font-bold tracking-widest uppercase truncate">{user.email}</div>
-                                                <div className="md:hidden text-[8px] text-gray-400 font-bold tracking-widest uppercase italic">{user.role}</div>
+                                                <div className="md:hidden text-[8px] text-gray-400 font-bold tracking-widest uppercase italic">{normalizedRole}</div>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="hidden md:table-cell px-8 py-8">
-                                        <span className={`inline-flex items-center px-3 py-1 text-[10px] font-black uppercase tracking-widest ${isSuperAdminRole(user.role) ? 'bg-primary-600 text-white' : isAdminRole(user.role) ? 'bg-black text-white' : 'bg-gray-200 text-black'
+                                        <span className={`inline-flex items-center px-3 py-1 text-[10px] font-black uppercase tracking-widest ${isAdminRole(user.role) ? 'bg-black text-white' : 'bg-gray-200 text-black'
                                             }`}>
-                                            {user.role}
+                                            {normalizedRole}
                                         </span>
                                     </td>
                                     <td className="px-4 md:px-8 py-4 md:py-8">
@@ -158,15 +144,6 @@ const UserManagement = () => {
                                                     <Shield size={10} /> Promo
                                                 </button>
                                             )}
-                                            {canPromoteToSuperAdmin && (
-                                                <button
-                                                    onClick={() => handleAction(user._id, 'promote-super-admin')}
-                                                    className="px-2 md:px-4 py-1.5 md:py-2 bg-primary-600 text-white text-[8px] md:text-[10px] uppercase hover:bg-black transition-colors flex items-center gap-1"
-                                                    title="Promote to super admin"
-                                                >
-                                                    <Shield size={10} /> Super
-                                                </button>
-                                            )}
                                             {canDelete ? (
                                                 <button
                                                     onClick={() => handleAction(user._id, 'delete')}
@@ -178,7 +155,7 @@ const UserManagement = () => {
                                             ) : (
                                                 <span
                                                     className="px-2 md:px-4 py-1.5 md:py-2 border border-gray-200 text-gray-300 text-[8px] md:text-[10px] uppercase cursor-not-allowed"
-                                                    title="Only a super admin can remove this account"
+                                                    title="You cannot remove your own account"
                                                 >
                                                     Locked
                                                 </span>

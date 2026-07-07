@@ -1,7 +1,7 @@
-export const isAdminRole = (role) => role === 'admin' || role === 'super-admin';
+export const normalizeRole = (role) => (
+    role === 'super-admin' ? 'admin' : role
+);
 
-export const isSuperAdminRole = (role) => role === 'super-admin';
+export const isAdminRole = (role) => normalizeRole(role) === 'admin';
 
 export const isAdminUser = (user) => isAdminRole(user?.role);
-
-export const isSuperAdminUser = (user) => isSuperAdminRole(user?.role);

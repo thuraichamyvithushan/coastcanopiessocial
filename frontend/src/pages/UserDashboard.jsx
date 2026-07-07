@@ -3,6 +3,7 @@ import { PlayCircle, Heart, MessageSquare, Clock, User as UserIcon, Maximize2, X
 import api from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import CommentSection from '../components/CommentSection';
 import { resolveMediaUrl } from '../utils/media';
@@ -106,7 +107,7 @@ const filteredPosts = posts.filter(post => {
 
     return (
         <div className="min-h-screen pb-20 -m-4 md:-m-10 p-4 md:p-10">
-            <div className="max-w-2xl mx-auto space-y-6">
+            <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="border-b-4 border-black pb-6 mb-4 backdrop-blur-sm">
                     <h1 className="text-3xl md:text-5xl font-black text-black tracking-tighter uppercase italic drop-shadow-sm">
@@ -155,7 +156,7 @@ const filteredPosts = posts.filter(post => {
 
                 {/* Content Feed */}
                 {loading ? (
-                    <div className="space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                         {[1, 2, 3].map(i => (
                             <div key={i} className="bg-white border-2 border-black p-6 space-y-4 animate-pulse">
                                 <div className="flex items-center gap-3">
@@ -224,7 +225,7 @@ const filteredPosts = posts.filter(post => {
                                                 </div>
                                             </div>
                                             
-                                            <div className="space-y-10">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 items-start">
                                                 {group.posts.map((post, pIndex) => (
                                                     <PostItem
                                                         key={post._id}
@@ -257,8 +258,6 @@ const filteredPosts = posts.filter(post => {
 };
 
 /* ── PostItem ────────────────────────────────────────────────── */
-import { useNavigate } from 'react-router-dom';
-
 const PostItem = ({ post, index, currentUser, onLike }) => {
     const navigate = useNavigate();
     const [isLocalNew, setIsLocalNew] = useState(post.isNew);
@@ -293,7 +292,7 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="relative backdrop-blur-md bg-white/70 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.7)] overflow-hidden transition-all"
+            className="relative h-full flex flex-col backdrop-blur-md bg-white/70 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.7)] overflow-hidden transition-all"
         >
             {/* New Post Badge */}
             {isLocalNew && (
@@ -333,7 +332,7 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
             </div>
 
             {/* Post Content */}
-            <div className="p-4 md:p-6 space-y-4">
+            <div className="p-4 md:p-6 space-y-4 flex-1 flex flex-col">
                 <div className="space-y-2 cursor-pointer" onClick={handleNavigate}>
                     <h3 className="text-xl md:text-2xl font-black uppercase tracking-tighter leading-none italic hover:text-primary-600 transition-colors">
                         {post.title}
@@ -364,25 +363,25 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                 {/* Media Container */}
                 {firstMedia.url && (
                     <div 
-                        className="relative bg-black border-2 border-black group cursor-pointer overflow-hidden"
+                        className="relative mt-auto bg-black border-2 border-black group cursor-pointer overflow-hidden"
                         onClick={handleNavigate}
                     >
                         {firstMedia.type === 'video' ? (
-                            <div className="w-full flex items-center justify-center">
+                            <div className="w-full h-[320px] flex items-center justify-center">
                                 <video 
                                     src={resolveMediaUrl(firstMedia.url)}
-                                    className="w-full h-auto"
+                                    className="w-full h-full object-cover"
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
                                     <PlayCircle size={48} className="text-white opacity-80 group-hover:scale-110 transition-transform" />
                                 </div>
                             </div>
                         ) : (
-                            <img
-                                src={resolveMediaUrl(firstMedia.url)}
-                                alt={post.title}
-                                className="w-full h-auto group-hover:scale-105 transition-transform duration-700 block"
-                            />
+                                <img
+                                    src={resolveMediaUrl(firstMedia.url)}
+                                    alt={post.title}
+                                    className="w-full h-[320px] object-cover group-hover:scale-105 transition-transform duration-700 block"
+                                />
                         )}
                         
                         {/* Media Count Badge */}

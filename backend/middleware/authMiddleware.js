@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const connectDB = require('../config/db');
-const { isAdminRole } = require('../utils/roles');
+const { isAdminRole, normalizeUserRole } = require('../utils/roles');
 
 const protect = async (req, res, next) => {
     let token;
@@ -14,7 +14,9 @@ const protect = async (req, res, next) => {
                 console.error('CRITICAL: JWT_SECRET is missing from environment variables!');
             }
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            req.user = await User.findById(decoded.id).select('-password');
+            req.user = await normalizeUserRole(
+                await User.findById(decoded.id).select('-password')
+            );
             
             if (!req.user) {
                 console.error('AUTH ERROR: User in token not found in database.');
