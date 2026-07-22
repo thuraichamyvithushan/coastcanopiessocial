@@ -5,6 +5,8 @@ backend/node_modules/
 
 # Local Environment
 .env
+.env.*
+!.env.example
 frontend/.env
 backend/.env
 

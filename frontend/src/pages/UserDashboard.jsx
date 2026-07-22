@@ -22,7 +22,7 @@ const UserDashboard = () => {
     const [filter, setFilter] = useState('all');
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 6;
+    const ITEMS_PER_PAGE = 12;
 
     const [dateFilter, setDateFilter] = useState('all'); 
 const [selectedDate, setSelectedDate] = useState('');
@@ -122,7 +122,7 @@ const displayedPosts = sortedPosts.slice(0, currentPage * ITEMS_PER_PAGE);
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="border-b-4 border-black pb-6 mb-4 backdrop-blur-sm">
-                    <h1 className="text-3xl md:text-5xl font-black text-black tracking-tighter uppercase italic drop-shadow-sm">
+                    <h1 className="text-2xl md:text-4xl font-black text-black tracking-tighter uppercase italic drop-shadow-sm">
                         Latest <span className="text-primary-600">Designs.</span>
                     </h1>
                     <p className="text-black/70 font-bold uppercase tracking-[0.2em] text-[10px] mt-2">
@@ -195,7 +195,7 @@ const displayedPosts = sortedPosts.slice(0, currentPage * ITEMS_PER_PAGE);
                             </div>
                         ) : (
                             <>
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 items-start">
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 items-start">
                                     {displayedPosts.map((post, index) => (
                                         <PostItem
                                             key={post._id}
@@ -301,7 +301,7 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
             {/* Post Content */}
             <div className="p-4 md:p-6 space-y-4 flex-1 flex flex-col">
                 <div className="space-y-2 cursor-pointer" onClick={handleNavigate}>
-                    <h3 className="text-xl md:text-2xl font-black uppercase tracking-tighter leading-none italic hover:text-primary-600 transition-colors">
+                    <h3 className="text-base md:text-lg font-black uppercase tracking-tighter leading-none italic hover:text-primary-600 transition-colors">
                         {post.title}
                     </h3>
                     <p className="text-xs text-gray-600 leading-relaxed font-medium whitespace-pre-wrap">
